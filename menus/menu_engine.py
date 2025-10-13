@@ -44,6 +44,10 @@ def _topic_color(menu_idx:int, topic:str):
             return T[r,ci_color].val.strip() if T[r,ci_color] else ''
     return ''
 
+def _button_color(menu_idx:int, topic:str):
+    color = _topic_color(menu_idx, topic)
+    return color if color else _menu_color(menu_idx)
+ 
 def _all_menu_button_topics():
     topics = set()
     for idx in range(1,6):
@@ -139,7 +143,7 @@ def handle_event(topic, value):
         if act_btn:
             drv = op('/project1/io/driver_led')
             if drv:
-                color = _topic_color(act_btn, t)
+                color = _button_color(act_btn, t)
                 if color:
                     try:
                         state = 'press' if float(value) >= 0.5 else 'idle'
