@@ -112,14 +112,18 @@ def handle_event(topic, value):
 
     # 3) Fader 14-bit geglättet ('fader/x')
     if t.startswith('fader/'):
+        parts = t.split('/')
+        base_topic = '/'.join(parts[:2]) if len(parts) > 2 and parts[2] in ('msb', 'lsb') else t
         FILT = op('/project1/layers/menus/event_filters')
-        y = FILT.module.fader_smooth(t, value) if FILT else None
+        filt_mod = FILT.module if FILT else None
+        func = getattr(filt_mod, 'fader_smooth', None) if filt_mod else None
+        y = func(t, value) if callable(func) else (float(value) if base_topic == t else None)
         if y is not None:
-            path, scale = _lookup(act, t)
+            path, scale = _lookup(act, base_topic)
             if path:
-                _send_osc(path, [float(y)*scale])
+                _send_osc(path, [float(y) * scale])
             else:
-                _send_osc('/' + t, [float(y)])
+                _send_osc('/' + base_topic, [float(y)])
         return True
 
     # 4) Standard: Lookup und raus
