@@ -2,7 +2,46 @@
 
 LED_CONST = op('/project1/io/led_const')
 API       = op('/project1/io/midicraft_enc_api')
-PALETTE   = op('/project1/io/palette_led')
+PALETTE   = op('/project1/io/midicraft_enc_led_palette')
+
+_LED_STATE = {}  # (ch, note) -> vel
+
+def _flush_led_const():
+    """Sync aggregated LED state into the Constant CHOP."""
+    if not LED_CONST:
+        return
+    try:
+        items = sorted(_LED_STATE.items())
+        pars = LED_CONST.par
+        has_num = hasattr(pars, 'numchans')
+        old_count = int(pars.numchans.eval()) if has_num else len(items)
+        if has_num:
+            pars.numchans = max(len(items), 1)
+        for idx, ((ch, note), vel) in enumerate(items):
+            name_par = f'name{idx}'
+            val_par  = f'value{idx}'
+            try:
+                pars[name_par] = f'ch{int(ch)}n{int(note)}'
+            except Exception:
+                pass
+            try:
+                pars[val_par]  = int(vel)
+            except Exception:
+                pass
+        if old_count > len(items):
+            for idx in range(len(items), old_count):
+                name_par = f'name{idx}'
+                val_par  = f'value{idx}'
+                try:
+                    pars[name_par] = ''
+                except Exception:
+                    pass
+                try:
+                    pars[val_par] = 0
+                except Exception:
+                    pass
+    except Exception as e:
+        print('[driver_led] EXC flush led_const:', e)
 
 # ---- intern: palette lookup ----
 def _palette_value(color, stage):
@@ -72,8 +111,13 @@ def send_led(target, state, color, do_send=True):
 
     if do_send and LED_CONST:
         try:
-            LED_CONST.par.name0  = f'ch{int(ch)}n{int(note)}'
-            LED_CONST.par.value0 = int(vel)
+            key = (int(ch), int(note))
+            ivel = int(vel)
+            if ivel <= 0:
+                _LED_STATE.pop(key, None)
+            else:
+                _LED_STATE[key] = ivel
+            _flush_led_const()
         except Exception as e:
             print('[driver_led] EXC send led_const:', e)
             return None
@@ -87,3 +131,10 @@ def all_menu_off(menu_color='white'):
 def test_all_btns(menu_color='white'):
     for i in range(1,6):
         send_led(f'btn/{i}','press',menu_color,True)
+
+def reset():
+    """Clear cached LED state and update the constant CHOP."""
+    _LED_STATE.clear()
+    _flush_led_const()
+
+reset()

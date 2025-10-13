@@ -28,6 +28,40 @@ def _lookup(menu_idx:int, topic:str):
             return path, scale
     return None, 1.0
 
+def _topic_color(menu_idx:int, topic:str):
+    T = op(f"/project1/layers/menus/menu_{int(menu_idx)}/map_osc")
+    if not T:
+        return ''
+    cols = { T[0,c].val.strip().lower(): c for c in range(T.numCols) }
+    ci_topic = cols.get('topic'); ci_color = cols.get('led_color')
+    if ci_topic is None or ci_color is None:
+        return ''
+    t = (topic or '').lstrip('/')
+    for r in range(1, T.numRows):
+        if not T[r,ci_topic]:
+            continue
+        if T[r,ci_topic].val.strip().lstrip('/') == t:
+            return T[r,ci_color].val.strip() if T[r,ci_color] else ''
+    return ''
+
+def _all_menu_button_topics():
+    topics = set()
+    for idx in range(1,6):
+        T = op(f"/project1/layers/menus/menu_{int(idx)}/map_osc")
+        if not T or T.numRows < 2:
+            continue
+        cols = { T[0,c].val.strip().lower(): c for c in range(T.numCols) }
+        ci_topic = cols.get('topic')
+        if ci_topic is None:
+            continue
+        for r in range(1, T.numRows):
+            if not T[r,ci_topic]:
+                continue
+            topic = T[r,ci_topic].val.strip().lstrip('/')
+            if topic and topic.startswith('btn/'):
+                topics.add(topic)
+    return topics
+
 def _menu_color(menu_idx:int):
     T = op(f"/project1/layers/menus/menu_{int(menu_idx)}/map_osc")
     if not T: return 'white'
@@ -47,6 +81,9 @@ def apply_menu_leds(menu_idx:int):
     if not T or not drv:
         print("[menu] WARN: map/driver missing"); 
         return
+    for topic in _all_menu_button_topics():
+        drv.module.send_led(topic, "off", "", do_send=True)
+
     cols = { T[0,c].val.strip().lower(): c for c in range(T.numCols) }
     ci_topic = cols.get("topic"); ci_color = cols.get("led_color"); ci_en = cols.get("enabled")
 
@@ -63,11 +100,12 @@ def apply_menu_leds(menu_idx:int):
         if color:
             drv.module.send_led(topic, "idle", color, do_send=True)
 
-    # Menü-Tasten-LEDs (exklusiv)
-    mcolor = _menu_color(menu_idx)
     for i in range(1,6):
         topic = f"btn/{i}"
-        drv.module.send_led(topic, "press" if i == int(menu_idx) else "off", mcolor, do_send=True)
+        color_i = _menu_color(i)
+        state = "press" if i == int(menu_idx) else "idle"
+        print("[menu] LED", topic, state, color_i)
+        drv.module.send_led(topic, state, color_i, do_send=True)
 
 def _send_osc(addr, payload):
     try:
@@ -81,16 +119,34 @@ def handle_event(topic, value):
     t_raw = str(topic or '')
     t = t_raw.lstrip('/')
 
-    # 1) Menütasten (exklusiv)
+    # 1) Menue-Tasten (exklusiv) sowie sonstige Buttons
     if t.startswith('btn/'):
         try:
             idx = int(t.split('/')[-1])
         except:
             idx = None
-        if idx and 1 <= idx <= 5 and float(value) >= 0.5:
-            _set_active(idx)
-            apply_menu_leds(idx)
-        return True
+        if idx and 1 <= idx <= 5:
+            try:
+                pressed = float(value) >= 0.5
+            except:
+                pressed = False
+            if pressed:
+                _set_active(idx)
+                apply_menu_leds(idx)
+            return True
+
+        act_btn = _get_active()
+        if act_btn:
+            drv = op('/project1/io/driver_led')
+            if drv:
+                color = _topic_color(act_btn, t)
+                if color:
+                    try:
+                        state = 'press' if float(value) >= 0.5 else 'idle'
+                    except:
+                        state = 'idle'
+                    drv.module.send_led(t, state, color, do_send=True)
+        # Button-Events ohne Menue-Wechsel laufen weiter zur OSC-Verarbeitung
 
     act = _get_active()
     if not act:

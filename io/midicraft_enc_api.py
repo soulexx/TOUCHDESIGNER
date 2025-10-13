@@ -27,7 +27,7 @@ def midi_to_topic(message:str, ch:int, idx:int):
         et = MAP[r,ci_et].val
         if et_req=='note' and et!='note':
             continue
-        if et_req=='cc' and et not in ('cc','cc_lsb'):
+        if et_req=='cc' and et not in ('cc','cc_lsb','cc_msb'):
             continue
         if int(MAP[r,ci_ch].val) != ch:
             continue

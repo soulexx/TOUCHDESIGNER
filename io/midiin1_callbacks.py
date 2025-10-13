@@ -8,6 +8,8 @@ def _append_bus(path, etype, ch, idx, val, raw=None):
 
 def onReceiveMIDI(dat, rowIndex, message, channel, index, value, input, bytes):
     api = op('/project1/io/midicraft_enc_api').module
+    filt_op = op('/project1/layers/menus/event_filters')
+    filt_mod = filt_op.module if filt_op else None
     topic, kind = api.midi_to_topic(message, int(channel), int(index))
     if not topic:
         return
@@ -18,9 +20,18 @@ def onReceiveMIDI(dat, rowIndex, message, channel, index, value, input, bytes):
         if kind == 'enc_rel':
             d = int(value) if int(value) < 64 else int(value) - 128
             _append_bus(topic, 'enc_rel', channel, index, d, raw=value); return
-        if kind == 'fader_msb':
-            _append_bus(topic+'/msb', 'cc7', channel, index, float(value)/127.0, raw=value); return
-        if kind == 'fader_lsb':
-            _append_bus(topic+'/lsb', 'cc7', channel, index, float(value)/127.0, raw=value); return
+        if kind in ('fader_msb', 'fader_lsb'):
+            part = 'msb' if kind == 'fader_msb' else 'lsb'
+            norm = float(value) / 127.0
+            combined = None
+            if filt_mod:
+                func = getattr(filt_mod, 'fader_smooth', None)
+                if callable(func):
+                    combined = func(topic + '/' + part, norm)
+            if combined is None and part == 'msb':
+                combined = norm  # fallback auf 7-bit falls kein Filter
+            if combined is not None:
+                _append_bus(topic, 'cc7', channel, index, float(combined), raw=value)
+            return
         # sonst normalisierte CC7
         _append_bus(topic, 'cc7', channel, index, float(value)/127.0, raw=value); return
