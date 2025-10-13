@@ -1,0 +1,4 @@
+topic	path_out	scale	enabled	led_color
+enc/1/delta	/test/m1/enc1	1	1	blue
+fader/1	/test/m1/fader1	1	1	blue
+__menu_color__			1	red
