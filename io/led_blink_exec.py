@@ -11,48 +11,48 @@ _MANAGER = op("/project1/io/led_blink_manager")
 
 
 def _tick():
-	if not _MANAGER:
-		return
-	mod = getattr(_MANAGER, "module", None)
-	if not mod:
-		return
-	try:
-		mod.tick(time.monotonic())
-	except Exception as exc:
-		print("[led_blink_exec] EXC tick:", exc)
+    if not _MANAGER:
+        return
+    mod = getattr(_MANAGER, "module", None)
+    if not mod:
+        return
+    try:
+        mod.tick(time.monotonic())
+    except Exception as exc:
+        print("[led_blink_exec] EXC tick:", exc)
 
 
 def onStart():
-	_tick()
+    _tick()
 
 
 def onCreate():
-	_tick()
+    _tick()
 
 
 def onExit():
-	return
+    return
 
 
 def onFrameStart(frame):
-	_tick()
+    _tick()
 
 
 def onFrameEnd(frame):
-	return
+    return
 
 
 def onPlayStateChange(state):
-	return
+    return
 
 
 def onDeviceChange():
-	return
+    return
 
 
 def onProjectPreSave():
-	return
+    return
 
 
 def onProjectPostSave():
-	return
+    return
