@@ -1,0 +1,4 @@
+name	stages
+slow	[{"state": "press", "duration": 0.5}, {"state": "idle", "duration": 0.5}]
+fast	[{"state": "press", "duration": 0.2}, {"state": "off", "duration": 0.2}]
+pulse	[{"state": "press", "duration": 0.1}, {"state": "idle", "duration": 0.4}]
