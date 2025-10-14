@@ -1,7 +1,7 @@
-﻿# /project1/layers/menus/menu_engine — minimal & robust
+# /project1/layers/menus/menu_engine � minimal & robust
 
 OSCDAT = op('/project1/io/oscout1')
-STATE  = op('/project1')  # Storage: ACTIVE_MENU ∈ {None, 1..5}
+STATE  = op('/project1')  # Storage: ACTIVE_MENU ? {None, 1..5}
 
 def _set_active(idx:int):
     STATE.store('ACTIVE_MENU', int(idx))
@@ -77,6 +77,28 @@ def _menu_color(menu_idx:int):
             v = T[r,ci_color].val.strip()
             return v if v else 'white'
     return 'white'
+
+
+def _wheel_stage_path(base_path, stage):
+    stage = (stage or 'normal').strip().lower()
+    if not base_path or not isinstance(base_path, str):
+        return None
+    if not base_path.startswith('/eos/wheel/'):
+        # Only wheel paths get stage variants.
+        return base_path if stage == 'normal' else None
+    suffix = base_path[len('/eos/wheel/') :].strip('/')
+    if not suffix:
+        return base_path if stage == 'normal' else None
+    if suffix == 'level':
+        # Level wheel uses explicit mode commands, not fine/coarse suffixes.
+        return base_path
+    if stage == 'fine':
+        return f"/eos/wheel/fine/{suffix}"
+    if stage == 'coarse':
+        return f"/eos/wheel/coarse/{suffix}"
+    return base_path
+
+_LEVEL_MODE_CACHE = {}  # topic -> last wheel mode (fine=1.0, coarse=0.0)
 
 def apply_menu_leds(menu_idx:int):
     """Nur Buttons bekommen LEDs; Encoder/EncPush/Fader NICHT."""
@@ -159,18 +181,102 @@ def handle_event(topic, value):
     # 2) Encoder relativ ('enc/x' -> 'enc/x/delta' nach Filter)
     if t.startswith('enc/'):
         FILT = op('/project1/layers/menus/event_filters')
-        if FILT:
-            d = FILT.module.enc_delta(t, value)
-            if d is not None:
-                look = t + '/delta'     # 'enc/1/delta'
-                path, scale = _lookup(act, look)
-                if path:
-                    _send_osc(path, [int(d)])
+        filt_mod = FILT.module if FILT else None
+        func = getattr(filt_mod, 'enc_delta', None) if filt_mod else None
+
+        events = None
+        if callable(func):
+            res = func(t, value)
+            if res is None:
+                return True
+            if isinstance(res, list) and res and isinstance(res[0], (list, tuple)):
+                events = res
+            else:
+                events = [res]
+        else:
+            try:
+                events = [('normal', int(value), {'stop_before': False})]
+            except Exception:
+                events = None
+
+        if not events:
+            return True
+
+        for evt in events:
+            if not isinstance(evt, (list, tuple)) or len(evt) < 2:
+                continue
+            stage = str(evt[0] or 'normal').strip().lower()
+            payload = evt[1]
+            meta = evt[2] if len(evt) >= 3 and isinstance(evt[2], dict) else {}
+            stop_before = bool(meta.get('stop_before'))
+
+            if stop_before:
+                _send_osc('/eos/switch/level', [0.0])
+
+            if stage == 'turbo':
+                try:
+                    switch_val = float(payload)
+                except Exception:
+                    continue
+                _LEVEL_MODE_CACHE.pop(t, None)
+                _send_osc('/eos/switch/level', [switch_val])
+                continue
+            if stage == 'turbo_stop':
+                _LEVEL_MODE_CACHE.pop(t, None)
+                _send_osc('/eos/switch/level', [0.0])
+                continue
+
+            try:
+                delta_int = int(payload)
+            except Exception:
+                continue
+            if delta_int == 0:
+                continue
+
+            look = t + '/delta'     # 'enc/1/delta'
+            path, scale = _lookup(act, look)
+            base_path = (path or '').strip() if path else ''
+
+            if scale is not None:
+                try:
+                    scale_val = float(scale)
+                except Exception:
+                    scale_val = 1.0
+            else:
+                scale_val = 1.0
+            if not base_path:
+                scale_val = 1.0
+
+            send_path = base_path or None
+            if send_path:
+                stage_path = _wheel_stage_path(send_path, stage)
+                if stage_path:
+                    send_path = stage_path
+            if not send_path:
+                fallback_paths = {
+                    'fine': '/eos/wheel/level',
+                    'normal': '/eos/wheel/level',
+                }
+                send_path = fallback_paths.get(stage, '/' + look)
+                scale_val = 1.0
+
+            payload_value = float(delta_int) * scale_val
+            if send_path.startswith('/eos/wheel/'):
+                if send_path == '/eos/wheel/level':
+                    desired_mode = 1.0 if stage == 'fine' else 0.0
+                    last_mode = _LEVEL_MODE_CACHE.get(t)
+                    if last_mode is None or abs(last_mode - desired_mode) > 1e-6:
+                        _send_osc('/eos/wheel', [float(desired_mode)])
+                        _LEVEL_MODE_CACHE[t] = desired_mode
                 else:
-                    _send_osc('/' + look, [int(d)])
+                    _LEVEL_MODE_CACHE.pop(t, None)
+                _send_osc(send_path, [payload_value])
+            else:
+                payload_out = int(round(payload_value)) if abs(payload_value - round(payload_value)) < 1e-6 else payload_value
+                _send_osc(send_path, [payload_out])
         return True
 
-    # 3) Fader 14-bit geglättet ('fader/x')
+    # 3) Fader 14-bit gegl�ttet ('fader/x')
     if t.startswith('fader/'):
         parts = t.split('/')
         base_topic = '/'.join(parts[:2]) if len(parts) > 2 and parts[2] in ('msb', 'lsb') else t
@@ -192,3 +298,5 @@ def handle_event(topic, value):
         try: _send_osc(path, [float(value)*scale])
         except: _send_osc(path, [value])
     return True
+
+

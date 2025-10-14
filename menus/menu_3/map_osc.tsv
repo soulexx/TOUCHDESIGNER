@@ -1,12 +1,12 @@
 topic	path_out	scale	enabled	led_color
-__menu_color__			1	blue
-btn/11		1	1	blue
-btn/12		1	1	blue
-btn/13		1	1	blue
-btn/14		1	1	blue
-btn/15		1	1	blue
-btn/21		1	1	blue
-btn/22		1	1	blue
-btn/23		1	1	blue
-btn/24		1	1	blue
-btn/25		1	1	blue
+__menu_color__			1	white
+btn/11		1	1	white
+btn/12		1	1	white
+btn/13		1	1	white
+btn/14		1	1	white
+btn/15		1	1	white
+btn/21		1	1	white
+btn/22		1	1	white
+btn/23		1	1	white
+btn/24		1	1	white
+btn/25		1	1	white
