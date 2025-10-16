@@ -1,91 +1,107 @@
-﻿# /project1/io/driver_led — minimal, API-only, Palette-only, led_const-only
+import sys
+import time
+from pathlib import Path
+from typing import Dict, Tuple
 
-LED_CONST = op('/project1/io/led_const')
-API       = op('/project1/io/midicraft_enc_api')
-PALETTE   = op('/project1/io/midicraft_enc_led_palette')
+# /project1/io/driver_led - minimal, API-only, Palette-only, led_const-only
 
-_LED_STATE = {}  # (ch, note) -> vel
+BASE_PATH = Path(r"c:\_DEV\TOUCHDESIGNER")
+SRC_PATH = BASE_PATH / "src"
+if str(SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(SRC_PATH))
 
-def _flush_led_const():
+from td_helpers.file_ring_buffer import FileRingBuffer
+
+LED_CONST = op("/project1/io/led_const")
+API = op("/project1/io/midicraft_enc_api")
+PALETTE = op("/project1/io/midicraft_enc_led_palette")
+
+_LED_STATE: Dict[Tuple[int, int], int] = {}
+_MIDI_OUT_LOG = FileRingBuffer(BASE_PATH / "logs" / "midi_out.log", max_lines=400)
+
+
+def _flush_led_const() -> None:
     """Sync aggregated LED state into the Constant CHOP."""
     if not LED_CONST:
         return
     try:
         items = sorted(_LED_STATE.items())
         pars = LED_CONST.par
-        has_num = hasattr(pars, 'numchans')
+        has_num = hasattr(pars, "numchans")
         old_count = int(pars.numchans.eval()) if has_num else len(items)
         if has_num:
             pars.numchans = max(len(items), 1)
         for idx, ((ch, note), vel) in enumerate(items):
-            name_par = f'name{idx}'
-            val_par  = f'value{idx}'
+            name_par = f"name{idx}"
+            val_par = f"value{idx}"
             try:
-                pars[name_par] = f'ch{int(ch)}n{int(note)}'
+                pars[name_par] = f"ch{int(ch)}n{int(note)}"
             except Exception:
                 pass
             try:
-                pars[val_par]  = int(vel)
+                pars[val_par] = int(vel)
             except Exception:
                 pass
         if old_count > len(items):
             for idx in range(len(items), old_count):
-                name_par = f'name{idx}'
-                val_par  = f'value{idx}'
+                name_par = f"name{idx}"
+                val_par = f"value{idx}"
                 try:
-                    pars[name_par] = ''
+                    pars[name_par] = ""
                 except Exception:
                     pass
                 try:
                     pars[val_par] = 0
                 except Exception:
                     pass
-    except Exception as e:
-        print('[driver_led] EXC flush led_const:', e)
+    except Exception as exc:
+        print("[driver_led] EXC flush led_const:", exc)
 
-# ---- intern: palette lookup ----
+
 def _palette_value(color, stage):
     """
-    stage ∈ {'off','dark','bright'}
+    stage ? {'off','dark','bright'}
     palette_led: columns expected: name | off | dark | bright | complement (optional)
     """
     if not PALETTE or PALETTE.numRows < 2:
         # Fallback-Werte, damit nix crasht
-        return 0 if stage=='off' else (12 if stage=='dark' else 26)
-    cols = {PALETTE[0,c].val.strip().lower(): c for c in range(PALETTE.numCols)}
-    ci_name  = cols.get('name', 0)
+        return 0 if stage == "off" else (12 if stage == "dark" else 26)
+    cols = {PALETTE[0, c].val.strip().lower(): c for c in range(PALETTE.numCols)}
+    ci_name = cols.get("name", 0)
     ci_stage = cols.get(stage)
     if ci_stage is None:
-        return 0 if stage=='off' else (12 if stage=='dark' else 26)
-    want = (color or '').strip().lower()
+        return 0 if stage == "off" else (12 if stage == "dark" else 26)
+    want = (color or "").strip().lower()
     for r in range(1, PALETTE.numRows):
         if PALETTE[r, ci_name] and PALETTE[r, ci_name].val.strip().lower() == want:
             v = PALETTE[r, ci_stage].val
-            try: return int(float(v))
-            except: return 0
+            try:
+                return int(float(v))
+            except Exception:
+                return 0
     # not found -> defaults
-    return 0 if stage=='off' else (12 if stage=='dark' else 26)
+    return 0 if stage == "off" else (12 if stage == "dark" else 26)
 
-# ---- intern: (ch, note) nur aus API ----
+
 def _ch_note_for_target(target):
     """
     Single Source of Truth: midicraft_enc_api.led_note_for_target(target) -> (ch, note)
     """
     if not API:
-        print('[driver_led] ERR: API op missing')
+        print("[driver_led] ERR: API op missing")
         return None
-    func = getattr(API.module, 'led_note_for_target', None)
+    func = getattr(API.module, "led_note_for_target", None)
     if not callable(func):
-        print('[driver_led] ERR: API.led_note_for_target missing')
+        print("[driver_led] ERR: API.led_note_for_target missing")
         return None
     try:
         ch, note = func(str(target))
         return int(ch), int(note)
-    except Exception as e:
-        print('[driver_led] EXC led_note_for_target:', e)
+    except Exception as exc:
+        print("[driver_led] EXC led_note_for_target:", exc)
         return None
 
-# ---- public: senden ----
+
 def send_led(target, state, color, do_send=True):
     """
     target: 'btn/x' (später ggf. mehr)
@@ -96,14 +112,14 @@ def send_led(target, state, color, do_send=True):
     color : name aus palette_led (z.B. 'blue')
     returns: (ch, note, vel) or None
     """
-    st = (state or '').strip().lower()
-    if st not in ('off','idle','press'):
-        st = 'off'
-    stage = 'off' if st=='off' else ('bright' if st=='press' else 'dark')
+    st = (state or "").strip().lower()
+    if st not in ("off", "idle", "press"):
+        st = "off"
+    stage = "off" if st == "off" else ("bright" if st == "press" else "dark")
 
     chn = _ch_note_for_target(target)
     if not chn:
-        print('[driver_led] WARN: no mapping for', target)
+        print("[driver_led] WARN: no mapping for", target)
         return None
     ch, note = chn
 
@@ -118,23 +134,33 @@ def send_led(target, state, color, do_send=True):
             else:
                 _LED_STATE[key] = ivel
             _flush_led_const()
-        except Exception as e:
-            print('[driver_led] EXC send led_const:', e)
+        except Exception as exc:
+            print("[driver_led] EXC send led_const:", exc)
             return None
+    try:
+        status = "Note On" if int(vel) > 0 else "Note Off"
+        _MIDI_OUT_LOG.append(
+            f"{time.time():.3f} {status} ch{ch} note{note} vel{vel} target={target} state={st} color={color or ''}"
+        )
+    except Exception:
+        pass
     return (ch, note, vel)
 
-# ---- helpers ----
-def all_menu_off(menu_color='white'):
-    for i in range(1,6):
-        send_led(f'btn/{i}', 'off', menu_color, do_send=True)
 
-def test_all_btns(menu_color='white'):
-    for i in range(1,6):
-        send_led(f'btn/{i}','press',menu_color,True)
+def all_menu_off(menu_color="white"):
+    for i in range(1, 6):
+        send_led(f"btn/{i}", "off", menu_color, do_send=True)
+
+
+def test_all_btns(menu_color="white"):
+    for i in range(1, 6):
+        send_led(f"btn/{i}", "press", menu_color, True)
+
 
 def reset():
     """Clear cached LED state and update the constant CHOP."""
     _LED_STATE.clear()
     _flush_led_const()
+
 
 reset()

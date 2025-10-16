@@ -1,12 +1,35 @@
+import sys
+from pathlib import Path
+
+BASE_PATH = Path(r"c:\_DEV\TOUCHDESIGNER")
+SRC_PATH = BASE_PATH / "src"
+if str(SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(SRC_PATH))
+
+from td_helpers.file_ring_buffer import FileRingBuffer
+
+_MIDI_IN_LOG = FileRingBuffer(BASE_PATH / "logs" / "midi_in.log", max_lines=400)
+
 
 def _append_bus(path, etype, ch, idx, val, raw=None):
     import time
+
     BUS = op('/project1/io/bus_events')
     if BUS.numRows == 0:
         BUS.appendRow(['ts','src','etype','ch','id','val','raw','path'])
     BUS.appendRow([time.time(),'device',etype,ch,idx,val,'' if raw is None else raw,'/'+path.lstrip('/')])
 
+
 def onReceiveMIDI(dat, rowIndex, message, channel, index, value, input, bytes):
+    try:
+        import time
+
+        _MIDI_IN_LOG.append(
+            f"{time.time():.3f} IN {message} ch{channel} idx{index} val{value}"
+        )
+    except Exception:
+        pass
+
     api = op('/project1/io/midicraft_enc_api').module
     filt_op = op('/project1/layers/menus/event_filters')
     filt_mod = filt_op.module if filt_op else None

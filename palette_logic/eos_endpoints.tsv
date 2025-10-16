@@ -1,0 +1,6 @@
+key	path
+SUBSCRIBE	/eos/subscribe
+SUBSCRIBE_PARAM	/eos/subscribe/param
+GET_COUNT	/eos/get/{type}/count
+GET_INDEX	/eos/get/{type}/index
+FIRE	/eos/{type}/{num}/fire
