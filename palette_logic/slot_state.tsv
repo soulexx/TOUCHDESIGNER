@@ -1,9 +1,9 @@
 slot	num	label	has_palette
-slot11	0	--	0
-slot12	0	--	0
-slot13	0	--	0
-slot14	0	--	0
-slot15	0	--	0
+slot11	1001	OFF false false 0	1
+slot12	1002	100 false false 0	1
+slot13	1003	95 false false 0	1
+slot14	1004	90 false false 0	1
+slot15	1005	85 false false 0	1
 slot21	0	--	0
 slot22	0	--	0
 slot23	0	--	0

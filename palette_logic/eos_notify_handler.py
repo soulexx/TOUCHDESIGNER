@@ -1,220 +1,96 @@
-"""
-Callbacks for handling incoming OSC messages from EOS.
+﻿# FILE: /project1/palette_logic/eos_notify_handler.py
+# Zweck: Direktes Parsing der Eos OUT-Pfade aus address/args. Keine Table-Abhängigkeit.
+import re
+from .state import set_last_seen
+from .pump  import queue_counts, on_list_ack
 
-This script expects to be used inside a DAT Execute DAT attached to the OSC In
-DAT. Adapt the OSC path parsing as needed for your show file.
-"""
+# Eos OUT-Pfadmuster
+RE_COUNT = re.compile(r'^/eos/out/get/(ip|fp|cp|bp)/count$')
+RE_LIST  = re.compile(r'^/eos/out/get/(ip|fp|cp|bp)/(\d+)/list/(\d+)/(\d+)$')
+RE_CHAN  = re.compile(r'^/eos/out/get/(ip|fp|cp|bp)/(\d+)/channels/list/(\d+)/(\d+)$')
+RE_BTYP  = re.compile(r'^/eos/out/get/(ip|fp|cp|bp)/(\d+)/bytype/list/(\d+)/(\d+)$')
 
-import shlex
-from typing import Dict, Optional, List
+# Hilfen für Tabellen pal_ip / pal_fp / pal_cp / pal_bp
+def _tab(typ: str):
+    p = f"/project1/palette_logic/pal_{typ}"
+    t = op(p)
+    if not t:
+        t = parent().create(op.TABLEDAT, f"pal_{typ}")
+    if t.numRows == 0:
+        t.appendRow(['num','index','uid','label','absolute','locked','channels','bytype'])
+    return t
 
+def _upsert(t, num, idx, **fields):
+    # upsert via (num,index)
+    for r in range(1, t.numRows):
+        if t[r,'num'] and t[r,'index'] and t[r,'num'].val == str(num) and t[r,'index'].val == str(idx):
+            for k,v in fields.items():
+                if t[0,k] is not None:
+                    t[r,k] = str(v)
+            return
+    row = {'num':num,'index':idx, **fields}
+    t.appendRow([str(row.get(c,'')) for c in [c.val for c in t.row(0)]])
 
-DAM_TAIL_SUFFIXES = (
-    "/list",
-    "/channels/list",
-    "/byType/list",
-)
-
-PALETTE_TYPES = ("ip", "fp", "cp", "bp")
-
-
-def _manager():
-    return mod("/project1/palette_logic/subscribe_manager")
-
-
-def _store_palette_list(palette_type: str, page_data: Dict[int, Dict[str, str]]):
+def on_osc_receive(address: str, args: list, ts: float = 0.0):
     """
-    Store palette data into the corresponding table.
-
-    Args:
-        palette_type: palette prefix (ip/fp/cp/bp).
-        page_data: mapping index -> {"num": ..., "uid": ..., "label": ...}
+    Direkter Entry-Point für OSC-Pakete.
+    address: z.B. '/eos/out/get/ip/1001/list/0/6'
+    args:    Liste der Argumente (index, uid, label, absolute, locked, ...)
+    ts:      optionaler Zeitstempel (nur für Debug)
     """
-    table = op(f"pal_{palette_type}")
-    if table is None:
-        raise RuntimeError(f"Missing DAT pal_{palette_type}")
+    # Lebenszeichen -> Watchdog beruhigen
+    set_last_seen(op('/project1'))
 
-    table.clear()
-    table.appendRow(["num", "uid", "label"])
-
-    for _, data in sorted(page_data.items()):
-        table.appendRow([data["num"], data["uid"], data["label"]])
-
-
-def _path_info(path: str) -> Optional[Dict[str, str]]:
-    """
-    Extract palette information from an EOS OSC path.
-
-    Returns dict with keys: type, palette_id, chunk
-    """
-    parts = [p for p in path.split("/") if p]
-    if not parts:
-        return None
-
-    for idx, part in enumerate(parts):
-        if part in PALETTE_TYPES:
-            palette_type = part
-            tail = parts[idx + 1 :] if idx + 1 < len(parts) else []
-
-            if not tail:
-                return {"type": palette_type, "palette_id": None, "chunk": ""}
-
-            # First element may be palette id or chunk identifier
-            palette_id = tail[0]
-            chunk = "/".join(tail[1:]) if len(tail) > 1 else ""
-
-            if palette_id in ("list", "index", "notify"):
-                # No palette number provided
-                palette_id = None
-            elif palette_id in ("channels", "byType"):
-                return None
-
-            if chunk.startswith("channels") or chunk.startswith("byType"):
-                return None
-
-            return {"type": palette_type, "palette_id": palette_id, "chunk": chunk}
-
-    return None
-
-
-def _parse_palette_row(row) -> Optional[Dict[str, str]]:
-    cells = [cell.val for cell in row]
-
-    # Prefer parsing the combined OSC message stored in the first column.
-    message = cells[0].strip()
-    if len(message) >= 2 and message[0] == message[-1] == "'":
-        message = message[1:-1]
-
-    tokens: List[str] = []
-    if message.startswith("/"):
-        try:
-            tokens = shlex.split(message)
-        except ValueError:
-            tokens = message.split()
-
-    if tokens:
-        path = tokens[0]
-        info = _path_info(path)
-        if not info or not info.get("chunk", "").startswith("list"):
-            return None
-
-        values = tokens[1:]
-        if not values:
-            return None
-
-        try:
-            index = int(float(values[0]))
-        except (ValueError, TypeError):
-            return None
-
-        uid = values[1] if len(values) > 1 else ""
-        label_tokens = values[2:]
-        label = " ".join(label_tokens).strip().strip('"')
-        if not label:
-            label = info.get("palette_id") or str(index)
-
-        num = info.get("palette_id") or label
-
-        return {
-            "type": info["type"],
-            "index": index,
-            "num": num,
-            "uid": uid.strip('"'),
-            "label": label,
-        }
-
-    # Fallback: rely on separated columns provided by OSC In DAT.
-    raw_path = cells[1] if len(cells) > 1 and cells[1] else cells[0]
-    path = raw_path.strip().strip('\'"')
-    info = _path_info(path)
-    if not info or not info.get("chunk", "").startswith("list"):
-        return None
-
-    values = [val.strip().strip('\'"') for val in cells[2:] if val]
-    if not values:
-        return None
-
-    try:
-        index = int(float(values[0]))
-    except (ValueError, TypeError):
-        return None
-
-    uid = values[1] if len(values) > 1 else ""
-
-    label_tokens: List[str] = []
-    for token in values[2:]:
-        token = token.strip()
-        if token:
-            label_tokens.append(token)
-
-    label = " ".join(label_tokens).strip()
-    if not label:
-        label = info.get("palette_id") or str(index)
-
-    num = info.get("palette_id") or label
-
-    return {
-        "type": info["type"],
-        "index": index,
-        "num": num,
-        "uid": uid,
-        "label": label,
-    }
-
-
-def _handle_get_index(dat):
-    """
-    Handle responses from /eos/get/<type>/index queries.
-
-    Each relevant row looks like:
-        [path, index, uid, label, ...]
-    """
-
-    page_data: Dict[str, Dict[int, Dict[str, str]]] = {}
-
-    for message in dat.rows():
-        parsed = _parse_palette_row(message)
-        if parsed is None:
-            continue
-
-        palette_type = parsed["type"]
-        if palette_type not in page_data:
-            page_data[palette_type] = {}
-
-        page_data[palette_type][parsed["index"]] = {
-            "num": parsed["num"],
-            "uid": parsed["uid"],
-            "label": parsed["label"],
-        }
-
-    touched_types = []
-    for palette_type, rows in page_data.items():
-        if rows:
-            _store_palette_list(palette_type, rows)
-            touched_types.append(palette_type)
-
-    return touched_types
-
-
-def onTableChange(dat):
-    """
-    DAT Execute hook: react to incoming OSC rows.
-
-    `dat` is the OSC In DAT.
-    """
-    if dat.numRows < 2:
+    # --- /count ---
+    m = RE_COUNT.match(address)
+    if m:
+        typ = m.group(1)
+        # ETC sendet count als erstes Int-Argument
+        count = int(args[0]) if args else 0
+        queue_counts(op('/project1'), {typ: count})
         return
 
-    first_row = dat.row(1)
-    path = first_row[0].val
+    # --- /list (Basis-Metadaten) ---
+    m = RE_LIST.match(address)
+    if m:
+        typ, palnum, list_index, list_count = m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4))
+        # Erwartete Argumente laut Doku:
+        #   0: itemIndex (0-basiert)
+        #   1: UID (string)
+        #   2: Label (string)
+        #   3: absolute (bool/int)
+        #   4: locked (bool/int)
+        idx      = int(args[0]) if len(args) > 0 else list_index
+        uid      = str(args[1]) if len(args) > 1 else ''
+        label    = str(args[2]) if len(args) > 2 else ''
+        absolute = str(args[3]).lower() in ('1','true','True') if len(args) > 3 else False
+        locked   = str(args[4]).lower() in ('1','true','True') if len(args) > 4 else False
 
-    _manager().mark_activity()
-
-    info = _path_info(path)
-    if info is None:
+        t = _tab(typ)
+        _upsert(t, palnum, idx, uid=uid, label=label, absolute=int(absolute), locked=int(locked))
+        # inflight bestätigen → nächster Index
+        on_list_ack(op('/project1'), typ, idx)
         return
 
-    updated_types = _handle_get_index(dat)
-    for palette_type in updated_types:
-        mod('/project1/palette_logic/update_slot_state').update_slot_state(palette_type)
+    # --- /channels/list (optional) ---
+    m = RE_CHAN.match(address)
+    if m:
+        typ, palnum, list_index, list_count = m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4))
+        idx   = int(args[0]) if len(args) > 0 else list_index
+        uid   = str(args[1]) if len(args) > 1 else ''
+        chans = str(args[2]) if len(args) > 2 else ''
+        _upsert(_tab(typ), palnum, idx, uid=uid or '', channels=chans)
+        return
 
+    # --- /bytype/list (optional) ---
+    m = RE_BTYP.match(address)
+    if m:
+        typ, palnum, list_index, list_count = m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4))
+        idx   = int(args[0]) if len(args) > 0 else list_index
+        uid   = str(args[1]) if len(args) > 1 else ''
+        bytyp = str(args[2]) if len(args) > 2 else ''
+        _upsert(_tab(typ), palnum, idx, uid=uid or '', bytype=bytyp)
+        return
+
+    # andere Eos-Pfade ignorieren oder separat behandeln
+    return
