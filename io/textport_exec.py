@@ -1,28 +1,44 @@
 # me - Execute DAT
 
+import importlib
 import sys
 from pathlib import Path
 
 BASE_PATH = Path(r"c:\_DEV\TOUCHDESIGNER")
 SRC_PATH = BASE_PATH / "src"
 if str(SRC_PATH) not in sys.path:
-	sys.path.insert(0, str(SRC_PATH))
+    sys.path.insert(0, str(SRC_PATH))
 
-from td_helpers.textport_tap import TextportLogger
+_MOD_NAME = "td_helpers.textport_tap"
+if _MOD_NAME in sys.modules:
+    textport_tap = importlib.reload(sys.modules[_MOD_NAME])
+else:
+    textport_tap = importlib.import_module(_MOD_NAME)
 
-LOGGER = TextportLogger(BASE_PATH / "logs" / "textport.log", max_lines=400)
+TextportLogger = textport_tap.TextportLogger
+
+TEXTPORT_MAX_LINES = 500
+LOGGER = TextportLogger(
+    BASE_PATH / "logs" / "textport.log",
+    max_lines=TEXTPORT_MAX_LINES,
+)
+
+
+def install_logger():
+    LOGGER.install()
 
 
 def onStart():
-	LOGGER.install()
-	print("[textport_exec] logger installed onStart")
+    install_logger()
 
 
 def onCreate():
-	LOGGER.install()
-	print("[textport_exec] logger installed onCreate")
+    install_logger()
 
 
 def onExit():
-	LOGGER.uninstall()
-	print("[textport_exec] logger uninstalled onExit")
+    LOGGER.uninstall()
+
+
+def onPulse(par):
+    install_logger()

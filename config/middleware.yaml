@@ -6,7 +6,7 @@ logging:
   osc_history_file: logs/osc_history.log
   osc_max_lines: 200
   textport_file: logs/textport.log
-  textport_max_lines: 400
+  textport_max_lines: 500
   midi_in_file: logs/midi_in.log
   midi_out_file: logs/midi_out.log
   rotation_bytes: 2097152  # 2 MiB

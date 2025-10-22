@@ -17,7 +17,11 @@ API = op("/project1/io/midicraft_enc_api")
 PALETTE = op("/project1/io/midicraft_enc_led_palette")
 
 _LED_STATE: Dict[Tuple[int, int], int] = {}
-_MIDI_OUT_LOG = FileRingBuffer(BASE_PATH / "logs" / "midi_out.log", max_lines=400)
+_MIDI_OUT_LOG = FileRingBuffer(
+    BASE_PATH / "logs" / "midi_out.log",
+    max_lines=400,
+    persist=True,
+)
 
 
 def _flush_led_const() -> None:

@@ -11,7 +11,11 @@ if str(SRC_PATH) not in sys.path:
 from td_helpers.file_ring_buffer import FileRingBuffer
 
 COMMAND_PATH = BASE_PATH / "scripts" / "live_command.py"
-_LOG = FileRingBuffer(BASE_PATH / "logs" / "command_runner.log", max_lines=200)
+_LOG = FileRingBuffer(
+    BASE_PATH / "logs" / "command_runner.log",
+    max_lines=200,
+    persist=True,
+)
 
 
 def _log(line: str) -> None:

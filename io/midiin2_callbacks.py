@@ -8,10 +8,12 @@ if str(IO_PATH) not in sys.path:
 
 from _midi_dispatcher import MidiDispatcher
 
+# Default API zeigt auf den MIDIcon-Handler. Bei Bedarf kann der Pfad am DAT
+# ueberschrieben werden: op('/project1/io/midiin2_callbacks').store('api_path', '<path>')
 _HANDLER = MidiDispatcher(
-    api_path="/project1/io/midicraft_enc_api",
-    log_name="midi_in.log",
-    device_label="midicraft_enc_map",
+    api_path="/project1/io/midicon_api",
+    log_name="midi_in2.log",
+    device_label="midicon_map",
 )
 
 
@@ -27,5 +29,5 @@ def onReceiveMIDI(dat, rowIndex, message, channel, index, value, input, bytes):
         try:
             dbg(dat, rowIndex, message, channel, index, value, input, bytes)
         except Exception as exc:
-            print("[midiin1_callbacks] debug_callback error:", exc)
+            print("[midiin2_callbacks] debug_callback error:", exc)
     _HANDLER.handle(dat, rowIndex, message, channel, index, value, input, bytes)

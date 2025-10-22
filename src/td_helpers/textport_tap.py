@@ -30,7 +30,12 @@ class TextportLogger:
     """Context manager to mirror stdout/stderr for the TouchDesigner Textport."""
 
     def __init__(self, log_path: Path, max_lines: int = 400) -> None:
-        self._buffer = FileRingBuffer(log_path, max_lines=max_lines)
+        self._buffer = FileRingBuffer(
+            log_path,
+            max_lines=max_lines,
+            persist=True,
+            flush_interval=0.05,
+        )
         self._stdout: Optional[TextIO] = None
         self._stderr: Optional[TextIO] = None
 
@@ -41,6 +46,10 @@ class TextportLogger:
         self._stderr = sys.stderr
         sys.stdout = TextportMirror(self._buffer, sys.stdout)  # type: ignore
         sys.stderr = TextportMirror(self._buffer, sys.stderr)  # type: ignore
+        try:
+            self._buffer.append("[textport] logger installed")
+        except Exception:
+            pass
 
     def uninstall(self) -> None:
         if self._stdout is None:
@@ -49,3 +58,7 @@ class TextportLogger:
         sys.stderr = self._stderr  # type: ignore
         self._stdout = None
         self._stderr = None
+        try:
+            self._buffer.append("[textport] logger uninstalled")
+        except Exception:
+            pass

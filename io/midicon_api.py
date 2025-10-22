@@ -1,4 +1,4 @@
-MAP_PATH = '/project1/io/midicraft_enc_map'
+MAP_PATH = '/project1/io/midicon_map'
 MAP = op(MAP_PATH)
 
 
@@ -13,11 +13,20 @@ def _cols(table):
     return {table[0, c].val.strip().lower(): c for c in range(table.numCols)}
 
 
+def _matches_channel(cell, incoming):
+    val = (cell.val if cell else '').strip().lower()
+    if not val:
+        return False
+    if val in {'*', 'any'}:
+        return True
+    try:
+        return int(val) == int(incoming)
+    except Exception:
+        return False
+
+
 def midi_to_topic(message: str, ch: int, idx: int):
-    """
-    message: 'Note On'/'Note Off'/'Control Change'
-    returns (topic, kind) with kind in {'note','enc_rel','cc7','fader_msb','fader_lsb'}
-    """
+    """Map incoming MIDI to topic/kind."""
     table = _refresh_map()
     if not table or table.numRows < 2:
         return None, None
@@ -38,52 +47,64 @@ def midi_to_topic(message: str, ch: int, idx: int):
         return None, None
 
     for r in range(1, table.numRows):
-        etype = table[r, ci_et].val
+        etype = table[r, ci_et].val if ci_et is not None else ''
         if expected == 'note' and etype != 'note':
             continue
         if expected == 'cc' and etype not in ('cc', 'cc_lsb', 'cc_msb'):
             continue
-        if int(table[r, ci_ch].val) != ch:
-            continue
-        if int(table[r, ci_idx].val) != idx:
+
+        if ci_ch is not None:
+            if not _matches_channel(table[r, ci_ch], ch):
+                continue
+        if ci_idx is not None:
+            try:
+                if int(table[r, ci_idx].val) != idx:
+                    continue
+            except Exception:
+                continue
+
+        topic = table[r, ci_top].val.strip().lstrip('/') if ci_top is not None else ''
+        if not topic:
             continue
 
-        topic = table[r, ci_top].val.strip().lstrip('/')
         if etype == 'note':
             return topic, 'note'
         if etype == 'cc_lsb':
             return topic, 'fader_lsb'
+
         mode_cell = table[r, ci_mode] if ci_mode is not None else None
         mode = mode_cell.val.strip().lower() if mode_cell else ''
         if mode == 'rel':
             return topic, 'enc_rel'
         return topic, 'fader_msb' if topic.startswith('fader/') else 'cc7'
+
     return None, None
 
 
 def led_note_for_target(target: str):
-    """Return (channel, note) for LED feedback."""
     table = _refresh_map()
     if not table or table.numRows < 2:
         return (None, None)
 
-    target = (target or '').strip().lstrip('/')
-    if not target.startswith('btn/'):
-        return (None, None)
-
+    tgt = (target or '').strip().lstrip('/')
     cols = _cols(table)
     ci_et = cols.get('etype')
     ci_ch = cols.get('ch')
     ci_idx = cols.get('idx')
     ci_top = cols.get('topic')
+    if ci_et is None or ci_ch is None or ci_idx is None or ci_top is None:
+        return (None, None)
 
     for r in range(1, table.numRows):
         if table[r, ci_et].val != 'note':
             continue
-        if table[r, ci_top].val.strip().lstrip('/') != target:
+        topic = table[r, ci_top].val.strip().lstrip('/')
+        if topic != tgt:
             continue
         try:
-            return int(table[r, ci_ch].val), int(table[r, ci_idx].val)
+            ch_val = table[r, ci_ch].val.strip().lower()
+            ch = int(ch_val) if ch_val not in {'*', 'any'} else 1
+            return ch, int(table[r, ci_idx].val)
         except Exception:
             return (None, None)
     return (None, None)
