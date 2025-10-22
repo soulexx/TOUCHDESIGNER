@@ -1,26 +1,38 @@
-from .state import get, mark_subscribe, reset_backoff, _now
+"""Subscription / count watchdog."""
+import time
+from . import state
+from .state import ORDER
 
-def send(path, *args):
-    op('/project1/io/osc_out').sendOSC(path, args)
+SUBSCRIBE_BACKOFF = 5.0
+COUNT_BACKOFF = 10.0
 
-def request_all_counts():
-    for t in ['ip','fp','cp','bp']:
-        send(f'/eos/get/{t}/count')
 
-def ensure_subscribed(root):
-    s = get(root)
-    age = _now() - s['last_seen']
-    since = _now() - s['last_subscribe']
-
-    # Wenn in den letzten 5s Leben da war: nix tun, Backoff resetten
-    if age < 5.0:
-        reset_backoff(root)
+def ensure_subscribed(base) -> None:
+    state.attach_base(base)
+    st = state.state
+    now = time.perf_counter()
+    osc = state.get_osc_out()
+    if not osc:
         return
+    if (now - st.last_activity) > SUBSCRIBE_BACKOFF and (
+        now - st.last_subscribe
+    ) > SUBSCRIBE_BACKOFF:
+        osc.sendOSC("/eos/subscribe", [1])
+        st.last_subscribe = now
+        st.subscribed = True
+        print("[palette] subscribe sent")
+    if (now - st.last_count_request) > COUNT_BACKOFF:
+        request_all_counts(base)
 
-    # Throttle: nur alle backoff_s resubscriben
-    if since < s['backoff_s']:
+
+def request_all_counts(base) -> None:
+    state.attach_base(base)
+    st = state.state
+    osc = state.get_osc_out()
+    if not osc:
+        print("[palette] WARN osc_out DAT missing; cannot request counts")
         return
-
-    send('/eos/subscribe', 1)
-    request_all_counts()
-    mark_subscribe(root)
+    st.last_count_request = time.perf_counter()
+    for palette_type in ORDER:
+        osc.sendOSC(f"/eos/get/{palette_type}/count", [])
+        print(f"[palette] count request {palette_type}")

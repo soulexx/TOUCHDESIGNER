@@ -1,96 +1,89 @@
-﻿# FILE: /project1/palette_logic/eos_notify_handler.py
-# Zweck: Direktes Parsing der Eos OUT-Pfade aus address/args. Keine Table-Abhängigkeit.
+"""Parse incoming EOS OSC payloads and update palette tables."""
 import re
-from .state import set_last_seen
-from .pump  import queue_counts, on_list_ack
+from typing import Sequence
+from . import state, pump
+from .state import ORDER, TABLE_HEADER
 
-# Eos OUT-Pfadmuster
-RE_COUNT = re.compile(r'^/eos/out/get/(ip|fp|cp|bp)/count$')
-RE_LIST  = re.compile(r'^/eos/out/get/(ip|fp|cp|bp)/(\d+)/list/(\d+)/(\d+)$')
-RE_CHAN  = re.compile(r'^/eos/out/get/(ip|fp|cp|bp)/(\d+)/channels/list/(\d+)/(\d+)$')
-RE_BTYP  = re.compile(r'^/eos/out/get/(ip|fp|cp|bp)/(\d+)/bytype/list/(\d+)/(\d+)$')
+RE_COUNT = re.compile(r"^/eos/out/get/(?P<typ>ip|fp|cp|bp)/count$")
+RE_LIST = re.compile(
+    r"^/eos/out/get/(?P<typ>ip|fp|cp|bp)/(?P<num>\d+)/list/(?P<idx>\d+)/(?:\d+)$"
+)
+RE_CHANNELS = re.compile(
+    r"^/eos/out/get/(?P<typ>ip|fp|cp|bp)/(?P<num>\d+)/channels/list/(?P<idx>\d+)/(?:\d+)$"
+)
+RE_BYTYPE = re.compile(
+    r"^/eos/out/get/(?P<typ>ip|fp|cp|bp)/(?P<num>\d+)/bytype/list/(?P<idx>\d+)/(?:\d+)$"
+)
 
-# Hilfen für Tabellen pal_ip / pal_fp / pal_cp / pal_bp
-def _tab(typ: str):
-    p = f"/project1/palette_logic/pal_{typ}"
-    t = op(p)
-    if not t:
-        t = parent().create(op.TABLEDAT, f"pal_{typ}")
-    if t.numRows == 0:
-        t.appendRow(['num','index','uid','label','absolute','locked','channels','bytype'])
-    return t
 
-def _upsert(t, num, idx, **fields):
-    # upsert via (num,index)
-    for r in range(1, t.numRows):
-        if t[r,'num'] and t[r,'index'] and t[r,'num'].val == str(num) and t[r,'index'].val == str(idx):
-            for k,v in fields.items():
-                if t[0,k] is not None:
-                    t[r,k] = str(v)
-            return
-    row = {'num':num,'index':idx, **fields}
-    t.appendRow([str(row.get(c,'')) for c in [c.val for c in t.row(0)]])
+def _clean_label(tokens: Sequence[object]) -> str:
+    cleaned = []
+    for token in tokens:
+        text = str(token).strip()
+        if not text:
+            continue
+        lower = text.lower()
+        if lower in {"true", "false", "0", "1"} and cleaned:
+            continue
+        cleaned.append(text)
+    return " ".join(cleaned)
 
-def on_osc_receive(address: str, args: list, ts: float = 0.0):
-    """
-    Direkter Entry-Point für OSC-Pakete.
-    address: z.B. '/eos/out/get/ip/1001/list/0/6'
-    args:    Liste der Argumente (index, uid, label, absolute, locked, ...)
-    ts:      optionaler Zeitstempel (nur für Debug)
-    """
-    # Lebenszeichen -> Watchdog beruhigen
-    set_last_seen(op('/project1'))
 
-    # --- /count ---
-    m = RE_COUNT.match(address)
-    if m:
-        typ = m.group(1)
-        # ETC sendet count als erstes Int-Argument
-        count = int(args[0]) if args else 0
-        queue_counts(op('/project1'), {typ: count})
+def _update_row(palette_type: str, index: int, **fields) -> None:
+    rows = max(state.state.counts.get(palette_type, 0), index + 1)
+    table = state.ensure_table(palette_type, rows)
+    if not table:
+        return
+    header = TABLE_HEADER
+    row = index + 1
+    table[row, header.index("index")] = str(index)
+    if state.state.counts.get(palette_type, 0) < index + 1:
+        state.state.counts[palette_type] = index + 1
+    for key, value in fields.items():
+        if value is None or key not in header:
+            continue
+        table[row, header.index(key)] = str(value)
+
+
+def on_osc_receive(address: str, args: Sequence[object], timestamp: float = 0.0) -> None:
+    base = td.op("/project1")
+    state.attach_base(base)
+    state.mark_activity()
+    if not address.startswith("/eos/out/get/"):
         return
 
-    # --- /list (Basis-Metadaten) ---
-    m = RE_LIST.match(address)
-    if m:
-        typ, palnum, list_index, list_count = m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4))
-        # Erwartete Argumente laut Doku:
-        #   0: itemIndex (0-basiert)
-        #   1: UID (string)
-        #   2: Label (string)
-        #   3: absolute (bool/int)
-        #   4: locked (bool/int)
-        idx      = int(args[0]) if len(args) > 0 else list_index
-        uid      = str(args[1]) if len(args) > 1 else ''
-        label    = str(args[2]) if len(args) > 2 else ''
-        absolute = str(args[3]).lower() in ('1','true','True') if len(args) > 3 else False
-        locked   = str(args[4]).lower() in ('1','true','True') if len(args) > 4 else False
-
-        t = _tab(typ)
-        _upsert(t, palnum, idx, uid=uid, label=label, absolute=int(absolute), locked=int(locked))
-        # inflight bestätigen → nächster Index
-        on_list_ack(op('/project1'), typ, idx)
+    match = RE_COUNT.match(address)
+    if match:
+        palette_type = match.group("typ")
+        count = int(float(args[0])) if args else 0
+        pump.queue_counts(base, {palette_type: count})
         return
 
-    # --- /channels/list (optional) ---
-    m = RE_CHAN.match(address)
-    if m:
-        typ, palnum, list_index, list_count = m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4))
-        idx   = int(args[0]) if len(args) > 0 else list_index
-        uid   = str(args[1]) if len(args) > 1 else ''
-        chans = str(args[2]) if len(args) > 2 else ''
-        _upsert(_tab(typ), palnum, idx, uid=uid or '', channels=chans)
+    match = RE_LIST.match(address)
+    if match:
+        palette_type = match.group("typ")
+        palette_num = int(match.group("num"))
+        index = int(float(args[0])) if args else int(match.group("idx"))
+        uid = str(args[1]) if len(args) > 1 else ""
+        label = _clean_label(args[2:])
+        _update_row(
+            palette_type, index, num=palette_num, uid=uid, label=label
+        )
+        pump.on_list_ack(base, palette_type, index)
         return
 
-    # --- /bytype/list (optional) ---
-    m = RE_BTYP.match(address)
-    if m:
-        typ, palnum, list_index, list_count = m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4))
-        idx   = int(args[0]) if len(args) > 0 else list_index
-        uid   = str(args[1]) if len(args) > 1 else ''
-        bytyp = str(args[2]) if len(args) > 2 else ''
-        _upsert(_tab(typ), palnum, idx, uid=uid or '', bytype=bytyp)
+    match = RE_CHANNELS.match(address)
+    if match:
+        palette_type = match.group("typ")
+        index = int(float(args[0])) if args else int(match.group("idx"))
+        channels = " ".join(str(item) for item in args[1:])
+        _update_row(palette_type, index, channels=channels)
         return
 
-    # andere Eos-Pfade ignorieren oder separat behandeln
-    return
+    match = RE_BYTYPE.match(address)
+    if match:
+        palette_type = match.group("typ")
+        index = int(float(args[0])) if args else int(match.group("idx"))
+        bytype = " ".join(str(item) for item in args[1:])
+        _update_row(palette_type, index, bytype=bytype)
+        return

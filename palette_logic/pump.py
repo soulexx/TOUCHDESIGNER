@@ -1,49 +1,102 @@
-from .state import get, _now
+"""Serial palette index pump."""
+import time
+from typing import Dict
+from . import state
+from .state import ORDER
 
-TIMEOUT_S = 2.0
-MAX_RETRIES = 2
-ORDER = ['ip','fp','cp','bp']
+INDEX_TIMEOUT = 3.0
+RETRY_LIMIT = 3
 
-def send(path, *args):
-    op('/project1/io/osc_out').sendOSC(path, args)
 
-def queue_counts(root, counts:dict):
-    s = get(root)
-    for t, c in counts.items():
-        if t in s['pending'] and not s['pending'][t]:
-            s['pending'][t] = list(range(0, max(0, int(c))))  # 0-basiert
-    if s['inflight'] is None:
-        kick(root)
+def attach_base(base) -> None:
+    state.attach_base(base)
 
-def kick(root):
-    s = get(root)
-    if s['inflight'] is not None:
+
+def queue_counts(base, mapping: Dict[str, int]) -> None:
+    state.attach_base(base)
+    now = time.perf_counter()
+    state.state.last_count_request = now
+    for palette_type, count in mapping.items():
+        _apply_count(palette_type, int(count))
+    for palette_type in mapping.keys():
+        _send_next_index(palette_type)
+
+
+def _apply_count(palette_type: str, count: int) -> None:
+    count = max(0, count)
+    st = state.state
+    st.counts[palette_type] = count
+    queue = st.queues[palette_type]
+    queue.clear()
+    queue.extend(range(count))
+    st.active[palette_type] = None
+    st.sent_at[palette_type] = 0.0
+    st.attempts[palette_type] = 0
+    state.ensure_table(palette_type, count)
+
+
+def on_list_ack(base, palette_type: str, index: int) -> None:
+    state.attach_base(base)
+    st = state.state
+    active = st.active[palette_type]
+    if active != index:
         return
-    for t in ORDER:
-        q = s['pending'][t]
-        if q:
-            idx = q.pop(0)
-            send(f'/eos/get/{t}/index/{idx}', [])
-            s['inflight'] = dict(t=t, idx=idx, sent=_now(), retries=0)
-            return
+    queue = st.queues[palette_type]
+    if queue and queue[0] == index:
+        queue.popleft()
+    elif index in queue:
+        queue.remove(index)
+    st.active[palette_type] = None
+    st.sent_at[palette_type] = 0.0
+    st.attempts[palette_type] = 0
+    _send_next_index(palette_type)
 
-def on_list_ack(root, t:str, list_index:int):
-    s = get(root)
-    infl = s['inflight']
-    if infl and infl['t'] == t and infl['idx'] == int(list_index):
-        s['inflight'] = None
-        kick(root)
 
-def tick(root):
-    s = get(root)
-    infl = s['inflight']
-    if not infl:
-        return
-    if _now() - infl['sent'] > TIMEOUT_S:
-        if infl['retries'] < MAX_RETRIES:
-            infl['retries'] += 1
-            infl['sent'] = _now()
-            send(f"/eos/get/{infl['t']}/index/{infl['idx']}", [])
+def tick(base) -> None:
+    state.attach_base(base)
+    st = state.state
+    now = time.perf_counter()
+    for palette_type in ORDER:
+        active = st.active[palette_type]
+        if active is None:
+            if st.queues[palette_type]:
+                _send_next_index(palette_type)
+            continue
+        if now - st.sent_at[palette_type] <= INDEX_TIMEOUT:
+            continue
+        osc = state.get_osc_out()
+        if not osc:
+            continue
+        if st.attempts[palette_type] >= RETRY_LIMIT:
+            queue = st.queues[palette_type]
+            if queue and queue[0] == active:
+                queue.popleft()
+            st.active[palette_type] = None
+            st.attempts[palette_type] = 0
+            print(f"[palette] WARN giving up on {palette_type}:{active}")
+            _send_next_index(palette_type)
         else:
-            s['inflight'] = None
-            kick(root)
+            osc.sendOSC(f"/eos/get/{palette_type}/index/{active}", [])
+            st.sent_at[palette_type] = now
+            st.attempts[palette_type] += 1
+            print(
+                f"[palette] resend {palette_type}:{active} attempt {st.attempts[palette_type]}"
+            )
+
+
+def _send_next_index(palette_type: str) -> None:
+    st = state.state
+    if st.active[palette_type] is not None:
+        return
+    queue = st.queues[palette_type]
+    if not queue:
+        return
+    osc = state.get_osc_out()
+    if not osc:
+        return
+    index = queue[0]
+    osc.sendOSC(f"/eos/get/{palette_type}/index/{index}", [])
+    st.active[palette_type] = index
+    st.sent_at[palette_type] = time.perf_counter()
+    st.attempts[palette_type] = 1
+    print(f"[palette] send index {palette_type} -> {index}")

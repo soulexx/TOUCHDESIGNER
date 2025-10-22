@@ -5,7 +5,6 @@ STATE  = op('/project1')  # Storage: ACTIVE_MENU ? {None, 1..5}
 
 def _set_active(idx:int):
     STATE.store('ACTIVE_MENU', int(idx))
-    print('[menu] ACTIVE_MENU =', int(idx))
 
 def _get_active():
     return STATE.fetch('ACTIVE_MENU', None)
@@ -130,13 +129,11 @@ def apply_menu_leds(menu_idx:int):
         topic = f"btn/{i}"
         color_i = _menu_color(i)
         state = "press" if i == int(menu_idx) else "idle"
-        print("[menu] LED", topic, state, color_i)
         drv.module.send_led(topic, state, color_i, do_send=True)
 
 def _send_osc(addr, payload):
     try:
         OSCDAT.sendOSC(addr, payload)
-        print("[osc]", addr, payload)
     except Exception as e:
         print("[osc ERR]", addr, payload, e)
 
@@ -157,8 +154,10 @@ def handle_event(topic, value):
             except:
                 pressed = False
             if pressed:
-                _set_active(idx)
-                apply_menu_leds(idx)
+                previous = _get_active()
+                if previous != idx:
+                    _set_active(idx)
+                    apply_menu_leds(idx)
             return True
 
         act_btn = _get_active()

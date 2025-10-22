@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import time
 from collections import deque
 from pathlib import Path
 from threading import Lock
@@ -21,6 +23,8 @@ class FileRingBuffer:
         max_lines: int = 200,
         rotation_bytes: Optional[int] = 2 * 1024 * 1024,
         encoding: str = "utf-8",
+        flush_interval: float = 0.25,
+        persist: Optional[bool] = None,
     ) -> None:
         if max_lines <= 0:
             raise ValueError("max_lines must be greater than zero")
@@ -32,6 +36,12 @@ class FileRingBuffer:
         self._encoding = encoding
         self._buffer = deque(maxlen=max_lines)
         self._lock = Lock()
+        self._persist = self._resolve_persist(persist)
+        self._flush_interval = (
+            max(float(flush_interval), 0.0) if self._persist else 0.0
+        )
+        self._last_flush = 0.0
+        self._dirty = False
 
         self._load_existing()
 
@@ -49,14 +59,16 @@ class FileRingBuffer:
         """Append a single line and flush to disk."""
         with self._lock:
             self._buffer.append(_ensure_newline(line))
-            self._flush()
+            self._dirty = True
+            self._flush_if_needed_locked()
 
     def extend(self, lines: Iterable[str]) -> None:
         """Append multiple lines."""
         with self._lock:
             for line in lines:
                 self._buffer.append(_ensure_newline(line))
-            self._flush()
+            self._dirty = True
+            self._flush_if_needed_locked()
 
     def snapshot(self) -> str:
         """Return current buffer contents as a single string."""
@@ -67,12 +79,23 @@ class FileRingBuffer:
         """Reset buffer and truncate on disk."""
         with self._lock:
             self._buffer.clear()
-            self._path.write_text("", encoding=self._encoding)
+            if self._persist:
+                self._path.write_text("", encoding=self._encoding)
+            self._dirty = False
+            self._last_flush = time.perf_counter()
 
     # Internal helpers ---------------------------------------------------
 
+    def _resolve_persist(self, override: Optional[bool]) -> bool:
+        if override is not None:
+            return bool(override)
+        env = os.environ.get("TD_FILE_RING_PERSIST")
+        if env is not None:
+            return env.strip().lower() in {"1", "true", "yes", "on"}
+        return False
+
     def _load_existing(self) -> None:
-        if not self._path.exists():
+        if not self._persist or not self._path.exists():
             return
         try:
             lines = self._path.read_text(encoding=self._encoding).splitlines(True)
@@ -81,7 +104,23 @@ class FileRingBuffer:
         for line in lines[-self._max_lines :]:
             self._buffer.append(line if line.endswith("\n") else f"{line}\n")
 
-    def _flush(self) -> None:
+    def _flush_if_needed_locked(self, *, force: bool = False) -> None:
+        if not self._dirty and not force:
+            return
+        now = time.perf_counter()
+        if (
+            not force
+            and self._flush_interval > 0.0
+            and (now - self._last_flush) < self._flush_interval
+        ):
+            return
+        self._write_buffer_locked()
+        self._last_flush = now
+        self._dirty = False
+
+    def _write_buffer_locked(self) -> None:
+        if not self._persist:
+            return
         self._maybe_rotate()
         try:
             self._path.write_text("".join(self._buffer), encoding=self._encoding)
@@ -90,6 +129,8 @@ class FileRingBuffer:
             return
 
     def _maybe_rotate(self) -> None:
+        if not self._persist:
+            return
         if (
             self._rotation_bytes is None
             or self._rotation_bytes <= 0
@@ -111,7 +152,6 @@ class FileRingBuffer:
         except OSError:
             # If rotation fails, keep writing to the original file.
             pass
-
 
 def _ensure_newline(line: str) -> str:
     return line if line.endswith("\n") else f"{line}\n"
