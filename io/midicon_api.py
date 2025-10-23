@@ -1,11 +1,31 @@
 MAP_PATH = '/project1/io/midicon_map'
-MAP = op(MAP_PATH)
+MAP = None
+
+
+def _resolve_op():
+    try:
+        return op  # type: ignore[name-defined]
+    except Exception:
+        pass
+    try:
+        import td  # type: ignore[import-not-found]
+
+        return td.op  # type: ignore[attr-defined]
+    except Exception:
+        pass
+    return None
 
 
 def _refresh_map():
     global MAP
+    op_fn = _resolve_op()
+    if op_fn is None:
+        return MAP
     if not MAP or not getattr(MAP, 'valid', True):
-        MAP = op(MAP_PATH)
+        try:
+            MAP = op_fn(MAP_PATH)
+        except Exception:
+            MAP = None
     return MAP
 
 
@@ -34,6 +54,10 @@ def midi_to_topic(message: str, ch: int, idx: int):
     msg = (message or '').strip()
     ch = int(ch)
     idx = int(idx)
+    if msg in ("Note On", "Note Off"):
+        idx = max(idx - 1, 0)
+    elif msg == "Control Change":
+        idx = max(idx - 1, 0)
 
     cols = _cols(table)
     ci_et = cols.get('etype')
@@ -68,6 +92,12 @@ def midi_to_topic(message: str, ch: int, idx: int):
             continue
 
         if etype == 'note':
+            if topic.startswith('midicon/wheel/'):
+                base, _, action = topic.rpartition('/')
+                if action == 'up':
+                    return base, 'enc_rel_up'
+                if action == 'down':
+                    return base, 'enc_rel_down'
             return topic, 'note'
         if etype == 'cc_lsb':
             return topic, 'fader_lsb'

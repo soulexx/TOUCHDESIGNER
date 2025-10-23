@@ -199,15 +199,44 @@ class MidiDispatcher:
         src_name = self._source_name(dat, api_module, api_comp, input_obj)
 
         if message in ("Note On", "Note Off"):
-            v = 1 if (message == "Note On" and int(value) > 0) else 0
+            is_press = message == "Note On" and int(value) > 0
+            wheel_topic = None
+            wheel_dir = 0
+            if kind in ("enc_rel_up", "enc_rel_down"):
+                wheel_topic = topic
+                wheel_dir = 1 if kind == "enc_rel_up" else -1
+            elif topic.startswith("midicon/wheel/"):
+                base, _, action = topic.rpartition("/")
+                if action in ("up", "down"):
+                    wheel_topic = base
+                    wheel_dir = 1 if action == "up" else -1
+            if wheel_topic is not None:
+                if not is_press:
+                    return
+                self._append_bus(
+                    wheel_topic,
+                    "enc_rel",
+                    channel,
+                    index,
+                    wheel_dir,
+                    raw=value,
+                    src=src_name,
+                )
+                return
+            v = 1 if is_press else 0
             self._append_bus(topic, "note", channel, index, v, raw=value, src=src_name)
             return
 
         if message != "Control Change":
             return
 
-        if kind == "enc_rel":
-            delta = int(value) if int(value) < 64 else int(value) - 128
+        if kind in ("enc_rel", "enc_rel_up", "enc_rel_down"):
+            if kind == "enc_rel_up":
+                delta = 1
+            elif kind == "enc_rel_down":
+                delta = -1
+            else:
+                delta = int(value) if int(value) < 64 else int(value) - 128
             self._append_bus(topic, "enc_rel", channel, index, delta, raw=value, src=src_name)
             return
 
