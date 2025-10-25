@@ -11,7 +11,7 @@ import s2l_unit as s2l
 MANAGER_DAT_PATH = "/project1/src/s2l_manager/dispatcher"
 
 
-DEBUG_RAW = False
+DEBUG_RAW = True
 
 
 def _instances_for_universe(universe: int) -> list[s2l.InstanceDefinition]:
