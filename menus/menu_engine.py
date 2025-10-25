@@ -4,10 +4,39 @@ OSCDAT = op('/project1/io/oscout1')
 STATE  = op('/project1')  # Storage: ACTIVE_MENU ? {None, 1..5}
 
 def _set_active(idx:int):
-    STATE.store('ACTIVE_MENU', int(idx))
+    idx = int(idx)
+    STATE.store('ACTIVE_MENU', idx)
+    try:
+        print('[menu active] menu_' + str(idx))
+    except Exception:
+        pass
 
 def _get_active():
     return STATE.fetch('ACTIVE_MENU', None)
+
+DEFAULT_MENU = 5
+
+_FADER_QUANT_DIGITS = 3
+
+def _quantize_fader_value(val):
+    try:
+        v = float(val)
+    except Exception:
+        return val
+    if not (-1e9 < v < 1e9):
+        return val
+    v = max(0.0, min(1.0, v))
+    return round(v, _FADER_QUANT_DIGITS)
+
+def _ensure_active():
+    act = _get_active()
+    if not act:
+        _set_active(DEFAULT_MENU)
+        try:
+            apply_menu_leds(DEFAULT_MENU)
+        except Exception:
+            pass
+
 
 def _lookup(menu_idx:int, topic:str):
     """Look up normalized topic (no leading slash) in menu_X/map_osc."""
@@ -133,11 +162,16 @@ def apply_menu_leds(menu_idx:int):
 
 def _send_osc(addr, payload):
     try:
+        print("[osc out]", addr, payload)
+    except Exception:
+        pass
+    try:
         OSCDAT.sendOSC(addr, payload)
     except Exception as e:
         print("[osc ERR]", addr, payload, e)
 
 def handle_event(topic, value):
+    _ensure_active()
     # Topic normalisieren: '/enc/1' -> 'enc/1'
     t_raw = str(topic or '')
     t = t_raw.lstrip('/')
@@ -284,6 +318,7 @@ def handle_event(topic, value):
         func = getattr(filt_mod, 'fader_smooth', None) if filt_mod else None
         y = func(t, value) if callable(func) else (float(value) if base_topic == t else None)
         if y is not None:
+            y = _quantize_fader_value(y)
             path, scale = _lookup(act, base_topic)
             if path:
                 _send_osc(path, [float(y) * scale])
@@ -294,8 +329,18 @@ def handle_event(topic, value):
     # 4) Standard: Lookup und raus
     path, scale = _lookup(act, t)
     if path:
-        try: _send_osc(path, [float(value)*scale])
-        except: _send_osc(path, [value])
+        try:
+            val_out = float(value)
+        except Exception:
+            val_out = value
+        if isinstance(val_out, (int, float)) and t.startswith('fader/'):
+            val_out = _quantize_fader_value(val_out)
+        try:
+            _send_osc(path, [float(val_out) * scale])
+        except Exception:
+            _send_osc(path, [val_out])
     return True
+
+
 
 

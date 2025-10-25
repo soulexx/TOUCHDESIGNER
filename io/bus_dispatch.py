@@ -28,6 +28,7 @@ def onTableChange(dat):
         dat.store('last_row', T.numRows)
         return
     src_col = cols.get('src')
+    ch_col = cols.get('ch')
 
     default_row = max(1, T.numRows - 1)
     last_row = int(dat.fetch('last_row', default_row))
@@ -50,15 +51,26 @@ def onTableChange(dat):
             cell = T[r, src_col]
             if cell:
                 s = cell.val
+        ch_val = ''
+        if ch_col is not None:
+            ch_cell = T[r, ch_col]
+            if ch_cell and ch_cell.val:
+                ch_val = ch_cell.val
         label = (s or '').strip() or 'dispatch'
-        if eng and p:
-            try:
-                _BUS_LOG.append(f"{time.time():.3f} [{label}] {p} {v}")
+        ch_tag = f" ch{ch_val}" if ch_val else ''
+        if not p:
+            continue
+
+        try:
+            should_log = not p.startswith('/midi/scaled/')
+            if should_log:
+                _BUS_LOG.append(f"{time.time():.3f} [{label}{ch_tag}] {p} {v}")
                 if debug_print:
-                    print(f'[{label}]', p, v)
+                    print(f'[{label}{ch_tag}]', p, v)
+            if eng:
                 eng.module.handle_event(p, float(v))
-            except Exception as e:
-                if debug_print:
-                    print('[bus-dispatch] EXC handle_event:', e)
+        except Exception as e:
+            if debug_print:
+                print('[bus-dispatch] EXC handle_event:', e)
     dat.store('last_row', end)
     return

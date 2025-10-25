@@ -1,12 +1,12 @@
-topic	path_out	scale	enabled	led_color
-__menu_color__			1	white
-btn/11		1	1	white
-btn/12		1	1	white
-btn/13		1	1	white
-btn/14		1	1	white
-btn/15		1	1	white
-btn/21		1	1	white
-btn/22		1	1	white
-btn/23		1	1	white
-btn/24		1	1	white
-btn/25		1	1	white
+topic	device	midi_channel	control_id	path_out	scale	enabled	led_color
+__menu_color__						1	white
+btn/11	midicraft	1	21		1	1	white
+btn/12	midicraft	1	22		1	1	white
+btn/13	midicraft	1	23		1	1	white
+btn/14	midicraft	1	24		1	1	white
+btn/15	midicraft	1	25		1	1	white
+btn/21	midicraft	1	26		1	1	white
+btn/22	midicraft	1	27		1	1	white
+btn/23	midicraft	1	28		1	1	white
+btn/24	midicraft	1	29		1	1	white
+btn/25	midicraft	1	30		1	1	white

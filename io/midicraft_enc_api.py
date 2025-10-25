@@ -13,6 +13,18 @@ def _cols(table):
     return {table[0, c].val.strip().lower(): c for c in range(table.numCols)}
 
 
+def _matches_channel(cell, incoming):
+    val = (cell.val if cell else '').strip().lower()
+    if not val:
+        return False
+    if val in {'*', 'any'}:
+        return True
+    try:
+        return int(val) == int(incoming)
+    except Exception:
+        return False
+
+
 def midi_to_topic(message: str, ch: int, idx: int):
     """
     message: 'Note On'/'Note Off'/'Control Change'
@@ -43,7 +55,7 @@ def midi_to_topic(message: str, ch: int, idx: int):
             continue
         if expected == 'cc' and etype not in ('cc', 'cc_lsb', 'cc_msb'):
             continue
-        if int(table[r, ci_ch].val) != ch:
+        if ci_ch is not None and not _matches_channel(table[r, ci_ch], ch):
             continue
         if int(table[r, ci_idx].val) != idx:
             continue
@@ -83,7 +95,9 @@ def led_note_for_target(target: str):
         if table[r, ci_top].val.strip().lstrip('/') != target:
             continue
         try:
-            return int(table[r, ci_ch].val), int(table[r, ci_idx].val)
+            ch_val = table[r, ci_ch].val.strip().lower()
+            ch_num = int(ch_val) if ch_val not in {'*', 'any'} else 1
+            return ch_num, int(table[r, ci_idx].val)
         except Exception:
             return (None, None)
     return (None, None)

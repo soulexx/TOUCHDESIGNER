@@ -18,8 +18,8 @@ ENC_COARSE_SPEED_MAX = 40.0  # cps -> maximale Skalierung
 ENC_DEBUG            = True  # True -> Debug-Log pro Event
 
 # Fader
-FADER_ALPHA = 0.18     # EMA (0..1)
-FADER_EPS   = 0.002    # Hysterese
+FADER_ALPHA = 1.0
+FADER_EPS   = 0.0
 
 _enc_acc       = defaultdict(int)          # topic -> sum
 _enc_last_ts   = defaultdict(float)        # topic -> last timestamp
@@ -144,10 +144,6 @@ def fader_smooth(topic, val01):
         store['msb'] = int(round(x * 127.0))
         store['lsb'] = 0
 
-    last = _fader_ema.get(base)
-    y = value if last is None else (FADER_ALPHA * value + (1 - FADER_ALPHA) * last)
-    _fader_ema[base] = y
-    if last is None or abs(y - last) >= FADER_EPS:
-        return float(y)
-    return None
+    _fader_ema[base] = value
+    return float(value)
 

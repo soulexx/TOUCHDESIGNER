@@ -33,6 +33,20 @@ def _resolve_op_callable():
 
 _OP_CALLABLE = _resolve_op_callable()
 
+_FADER_QUANTIZE_DIGITS = 3
+
+def _quantize_fader_value(val):
+    try:
+        v = float(val)
+    except Exception:
+        return val
+    if not (-1e9 < v < 1e9):
+        return v
+    v = max(0.0, min(1.0, v))
+    return round(v, _FADER_QUANTIZE_DIGITS)
+
+
+
 
 class MidiDispatcher:
     """
@@ -177,8 +191,32 @@ class MidiDispatcher:
     # ----------------------------------------------------------------- public
     def handle(self, dat, rowIndex, message, channel, index, value, input_obj, bytes):
         try:
+            ch_num = int(channel)
+        except Exception:
+            ch_num = channel
+        channel_display = ch_num
+        try:
+            if bytes:
+                status_byte = None
+                try:
+                    status_byte = int(bytes[0])
+                except Exception:
+                    status_byte = None
+                if status_byte is not None:
+                    ch_num = (status_byte & 0x0F) + 1
+                    channel_display = ch_num
+        except Exception:
+            pass
+
+        try:
+            raw_repr = ""
+            if bytes:
+                try:
+                    raw_repr = " " + " ".join(f"{int(b):02X}" for b in bytes)
+                except Exception:
+                    raw_repr = f" {bytes!r}"
             self._log.append(
-                f"{time.time():.3f} IN {message} ch{channel} idx{index} val{value}"
+                f"{time.time():.3f} IN {message} ch{ch_num} idx{index} val{value}{raw_repr}"
             )
         except Exception:
             pass
@@ -192,13 +230,74 @@ class MidiDispatcher:
         if not callable(midi_to_topic):
             return
 
-        topic, kind = midi_to_topic(message, int(channel), int(index))
-        if not topic:
-            return
+        try:
+            chan_for_map = int(ch_num)
+        except Exception:
+            try:
+                chan_for_map = int(channel)
+            except Exception:
+                chan_for_map = channel
 
         src_name = self._source_name(dat, api_module, api_comp, input_obj)
 
-        if message in ("Note On", "Note Off"):
+        topic, kind = midi_to_topic(message, chan_for_map, int(index))
+
+        # 1) Grundsätzlich normalisieren und protokollieren
+        scaled_kind = "raw"
+        scaled_value = value
+        scaled_path = None
+        wheel_delta = None
+        is_note_event = message in ("Note On", "Note Off")
+
+        if is_note_event:
+            is_press = message == "Note On" and int(value) > 0
+            scaled_kind = "note"
+            scaled_value = 1 if is_press else 0
+            scaled_path = f"/midi/scaled/note/ch{channel_display}/idx{int(index)}"
+        elif message == "Control Change":
+            if kind in ("enc_rel", "enc_rel_up", "enc_rel_down"):
+                if kind == "enc_rel_up":
+                    wheel_delta = 1
+                elif kind == "enc_rel_down":
+                    wheel_delta = -1
+                else:
+                    try:
+                        wheel_delta = int(value) if int(value) < 64 else int(value) - 128
+                    except Exception:
+                        wheel_delta = 0
+                scaled_kind = "enc_rel"
+                scaled_value = wheel_delta
+                scaled_path = f"/midi/scaled/enc_rel/ch{channel_display}/idx{int(index)}"
+            else:
+                try:
+                    scaled_value = float(value) / 127.0
+                except Exception:
+                    scaled_value = float(value) if isinstance(value, (int, float)) else 0.0
+                if topic and isinstance(topic, str) and 'fader' in topic.lower():
+                    scaled_value = _quantize_fader_value(scaled_value)
+                elif kind in ('fader_msb', 'fader_lsb'):
+                    scaled_value = _quantize_fader_value(scaled_value)
+                scaled_kind = "cc7"
+                scaled_path = f"/midi/scaled/cc/ch{channel_display}/idx{int(index)}"
+        else:
+            norm_message = (message or "").strip().lower().replace(" ", "_") or "event"
+            scaled_path = f"/midi/scaled/{norm_message}/ch{channel_display}/idx{int(index)}"
+
+        if scaled_path:
+            self._append_bus(
+                scaled_path,
+                scaled_kind,
+                channel_display,
+                index,
+                scaled_value,
+                raw=value,
+                src=src_name,
+            )
+
+        if not topic:
+            return
+
+        if is_note_event:
             is_press = message == "Note On" and int(value) > 0
             wheel_topic = None
             wheel_dir = 0
@@ -209,14 +308,14 @@ class MidiDispatcher:
                 base, _, action = topic.rpartition("/")
                 if action in ("up", "down"):
                     wheel_topic = base
-                    wheel_dir = 1 if action == "up" else -1
+                wheel_dir = 1 if action == "up" else -1
             if wheel_topic is not None:
                 if not is_press:
                     return
                 self._append_bus(
                     wheel_topic,
                     "enc_rel",
-                    channel,
+                    channel_display,
                     index,
                     wheel_dir,
                     raw=value,
@@ -224,25 +323,35 @@ class MidiDispatcher:
                 )
                 return
             v = 1 if is_press else 0
-            self._append_bus(topic, "note", channel, index, v, raw=value, src=src_name)
+            self._append_bus(
+                topic, "note", channel_display, index, v, raw=value, src=src_name
+            )
             return
 
         if message != "Control Change":
             return
 
         if kind in ("enc_rel", "enc_rel_up", "enc_rel_down"):
-            if kind == "enc_rel_up":
-                delta = 1
-            elif kind == "enc_rel_down":
-                delta = -1
-            else:
-                delta = int(value) if int(value) < 64 else int(value) - 128
-            self._append_bus(topic, "enc_rel", channel, index, delta, raw=value, src=src_name)
+            delta = wheel_delta
+            if delta is None:
+                if kind == "enc_rel_up":
+                    delta = 1
+                elif kind == "enc_rel_down":
+                    delta = -1
+                else:
+                    try:
+                        delta = int(value) if int(value) < 64 else int(value) - 128
+                    except Exception:
+                        delta = 0
+            self._append_bus(topic, "enc_rel", channel_display, index, delta, raw=value, src=src_name)
             return
 
         if kind in ("fader_msb", "fader_lsb"):
             part = "msb" if kind == "fader_msb" else "lsb"
-            norm = float(value) / 127.0
+            try:
+                norm = float(value) / 127.0
+            except Exception:
+                norm = 0.0
             combined = None
             if filt_module:
                 smooth = getattr(filt_module, "fader_smooth", None)
@@ -251,10 +360,11 @@ class MidiDispatcher:
             if combined is None and part == "msb":
                 combined = norm
             if combined is not None:
+                combined = _quantize_fader_value(combined)
                 self._append_bus(
                     topic,
                     "cc7",
-                    channel,
+                    channel_display,
                     index,
                     float(combined),
                     raw=value,
@@ -262,12 +372,15 @@ class MidiDispatcher:
                 )
             return
 
+        cc_value = float(value) / 127.0
+        if topic and isinstance(topic, str) and 'fader' in topic.lower():
+            cc_value = _quantize_fader_value(cc_value)
         self._append_bus(
             topic,
             "cc7",
-            channel,
+            channel_display,
             index,
-            float(value) / 127.0,
+            cc_value,
             raw=value,
             src=src_name,
         )
