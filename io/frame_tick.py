@@ -27,10 +27,8 @@ def _chop_to_bytes(chop):
     data = []
     for channel in chop.chans():
         raw = channel[0]
-        if raw > 1.0:
-            value = max(0.0, min(255.0, raw))
-        else:
-            value = max(0.0, min(1.0, raw)) * 255.0
+        # CHOP delivers DMX values directly (0-255), not normalized (0-1)
+        value = max(0.0, min(255.0, raw))
         data.append(int(round(value)))
     if len(data) > 512:
         data = data[-512:]
