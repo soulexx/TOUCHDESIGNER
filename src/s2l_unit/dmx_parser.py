@@ -29,8 +29,6 @@ def _decode_uint16(coarse: int, fine: int) -> int:
 def _scale_if_needed(raw: int, param: ParameterDefinition, max_raw: int) -> int:
     """Return raw value or scale it into the declared parameter range."""
     min_val, max_val = param.value_range
-    if min_val <= raw <= max_val:
-        return raw
     if max_raw <= 0:
         return raw
     span = max_val - min_val
