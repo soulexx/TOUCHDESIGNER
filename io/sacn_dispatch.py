@@ -11,7 +11,7 @@ import s2l_unit as s2l
 MANAGER_DAT_PATH = "/project1/src/s2l_manager/dispatcher"
 
 
-DEBUG_RAW = False
+DEBUG_RAW = True
 
 
 def _instances_for_universe(universe: int) -> list[s2l.InstanceDefinition]:
@@ -24,10 +24,12 @@ def _instances_for_universe(universe: int) -> list[s2l.InstanceDefinition]:
 
 def handle_universe(payload: bytes, universe: int) -> None:
     """Decode DMX payload for a universe and forward it to the manager."""
+    print(f"[sacn_dispatch] handle_universe called: universe={universe}, payload_len={len(payload) if payload else 0}")
     if not payload:
         return
 
     instances = _instances_for_universe(universe)
+    print(f"[sacn_dispatch] Found {len(instances)} instances")
     if not instances:
         return
 
@@ -36,9 +38,7 @@ def handle_universe(payload: bytes, universe: int) -> None:
             start = inst.start_address - 1
             coarse = payload[start] if start < len(payload) else None
             fine = payload[start + 1] if start + 1 < len(payload) else None
-            debug(
-                f"[sacn_dispatch] raw bytes {inst.instance}: coarse={coarse} fine={fine}"
-            )  # type: ignore[name-defined]
+            print(f"[sacn_dispatch] raw bytes {inst.instance}: coarse={coarse} fine={fine}")
 
     try:
         values: Dict[str, Dict[str, int]] = s2l.decode_universe(payload, instances, scaling=False)
