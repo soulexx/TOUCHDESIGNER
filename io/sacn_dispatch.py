@@ -24,10 +24,12 @@ def _instances_for_universe(universe: int) -> list[s2l.InstanceDefinition]:
 
 def handle_universe(payload: bytes, universe: int) -> None:
     """Decode DMX payload for a universe and forward it to the manager."""
+    print(f"[sacn_dispatch] handle_universe called: universe={universe}, payload_len={len(payload) if payload else 0}")
     if not payload:
         return
 
     instances = _instances_for_universe(universe)
+    print(f"[sacn_dispatch] Found {len(instances)} instances")
     if not instances:
         return
 
