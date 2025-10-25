@@ -92,7 +92,7 @@ STATE_CODE = textwrap.dedent(
 
     def get_osc_out():
         base = get_base()
-        return base.op("io/osc_out") if base else None
+        return base.op("io/oscout1") if base else None
 
 
     def mark_activity() -> None:
@@ -413,9 +413,9 @@ def _ensure_tick_exec(io_comp):
 
 
 def _ensure_osc_out(io_comp):
-    osc_out = io_comp.op("osc_out")
+    osc_out = io_comp.op("oscout1")
     if not osc_out:
-        osc_out = io_comp.create("oscOutDAT", "osc_out")
+        osc_out = io_comp.create("oscOutDAT", "oscout1")
     osc_out.par.port = 8001
     return osc_out
 

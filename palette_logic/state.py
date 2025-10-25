@@ -83,7 +83,7 @@ def ensure_table(palette_type: str, rows: int):
 
 def get_osc_out():
     base = get_base()
-    return base.op("io/osc_out") if base else None
+    return base.op("io/oscout1") if base else None
 
 
 def mark_activity() -> None:
