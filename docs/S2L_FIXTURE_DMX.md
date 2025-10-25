@@ -1,4 +1,4 @@
-# S2L_UNIT DMX Patch Documentation
+# S2L Fixture DMX Documentation
 
 ## Overview
 
