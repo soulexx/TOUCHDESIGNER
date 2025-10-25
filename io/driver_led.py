@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 from pathlib import Path
@@ -5,7 +6,8 @@ from typing import Dict, Tuple
 
 # /project1/io/driver_led - minimal, API-only, Palette-only, led_const-only
 
-BASE_PATH = Path(r"c:\_DEV\TOUCHDESIGNER")
+# Portable path resolution: support both environment variable and relative path
+BASE_PATH = Path(os.getenv('TOUCHDESIGNER_ROOT', Path(__file__).resolve().parent.parent))
 SRC_PATH = BASE_PATH / "src"
 if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
@@ -40,26 +42,26 @@ def _flush_led_const() -> None:
             val_par = f"value{idx}"
             try:
                 pars[name_par] = f"ch{int(ch)}n{int(note)}"
-            except Exception:
-                pass
+            except (AttributeError, KeyError, TypeError):
+                pass  # Parameter doesn't exist or invalid type
             try:
                 pars[val_par] = int(vel)
-            except Exception:
-                pass
+            except (AttributeError, KeyError, TypeError, ValueError):
+                pass  # Parameter doesn't exist or invalid type
         if old_count > len(items):
             for idx in range(len(items), old_count):
                 name_par = f"name{idx}"
                 val_par = f"value{idx}"
                 try:
                     pars[name_par] = ""
-                except Exception:
-                    pass
+                except (AttributeError, KeyError, TypeError):
+                    pass  # Parameter doesn't exist
                 try:
                     pars[val_par] = 0
-                except Exception:
-                    pass
-    except Exception as exc:
-        print("[driver_led] EXC flush led_const:", exc)
+                except (AttributeError, KeyError, TypeError):
+                    pass  # Parameter doesn't exist
+    except (AttributeError, TypeError, ValueError) as exc:
+        print(f"[driver_led] ERROR flush led_const: {exc}")
 
 
 def _palette_value(color, stage):
@@ -81,8 +83,8 @@ def _palette_value(color, stage):
             v = PALETTE[r, ci_stage].val
             try:
                 return int(float(v))
-            except Exception:
-                return 0
+            except (ValueError, TypeError):
+                return 0  # Invalid number format
     # not found -> defaults
     return 0 if stage == "off" else (12 if stage == "dark" else 26)
 
@@ -101,8 +103,8 @@ def _ch_note_for_target(target):
     try:
         ch, note = func(str(target))
         return int(ch), int(note)
-    except Exception as exc:
-        print("[driver_led] EXC led_note_for_target:", exc)
+    except (ValueError, TypeError, AttributeError) as exc:
+        print(f"[driver_led] ERROR led_note_for_target({target}): {exc}")
         return None
 
 
@@ -138,16 +140,16 @@ def send_led(target, state, color, do_send=True):
             else:
                 _LED_STATE[key] = ivel
             _flush_led_const()
-        except Exception as exc:
-            print("[driver_led] EXC send led_const:", exc)
+        except (ValueError, TypeError) as exc:
+            print(f"[driver_led] ERROR send led_const: {exc}")
             return None
     try:
         status = "Note On" if int(vel) > 0 else "Note Off"
         _MIDI_OUT_LOG.append(
             f"{time.time():.3f} {status} ch{ch} note{note} vel{vel} target={target} state={st} color={color or ''}"
         )
-    except Exception:
-        pass
+    except (OSError, ValueError, TypeError):
+        pass  # Log write failed, not critical
     return (ch, note, vel)
 
 

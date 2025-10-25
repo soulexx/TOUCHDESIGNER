@@ -1,10 +1,12 @@
 """Legacy shim that re-exports the optimised OSC callback implementation."""
 
+import os
 import sys
 from pathlib import Path
 import importlib
 
-BASE_PATH = Path(r"c:\_DEV\TOUCHDESIGNER")
+# Portable path resolution: support both environment variable and relative path
+BASE_PATH = Path(os.getenv('TOUCHDESIGNER_ROOT', Path(__file__).resolve().parent.parent))
 IO_PATH = BASE_PATH / "io"
 if str(IO_PATH) not in sys.path:
     sys.path.insert(0, str(IO_PATH))

@@ -1,8 +1,10 @@
+import os
 import sys
 from pathlib import Path
 from typing import Dict, Sequence
 
-BASE_PATH = Path(r"c:\_DEV\TOUCHDESIGNER")
+# Portable path resolution: support both environment variable and relative path
+BASE_PATH = Path(os.getenv('TOUCHDESIGNER_ROOT', Path(__file__).resolve().parent.parent))
 SRC_PATH = BASE_PATH / "src"
 if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
