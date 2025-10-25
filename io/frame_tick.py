@@ -17,7 +17,7 @@ def _resolve_sacn_chop():
     chop = op(DEFAULT_CHOP_PATH)
     if chop and chop.isCHOP:
         return chop
-    debug("[s2l][tick] no CHOP source configured")
+    print("[s2l][tick] no CHOP source configured")
     return None
 
 
