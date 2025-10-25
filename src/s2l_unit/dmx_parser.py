@@ -52,8 +52,9 @@ def decode_parameter(buffer: bytes, param: ParameterDefinition, offset: int, *, 
 
     if param.dmx_slot_count == 2:
         _ensure_length(buffer, slot_index, 2)
-        coarse = buffer[slot_index]
-        fine = buffer[slot_index + 1]
+        # ETC Eos sends LSB first, MSB second (little-endian byte order)
+        fine = buffer[slot_index]       # First byte = LSB (fine/low byte)
+        coarse = buffer[slot_index + 1]  # Second byte = MSB (coarse/high byte)
         raw = _decode_uint16(coarse, fine)
         return _scale_if_needed(raw, param, 65535) if scaling else raw
 
