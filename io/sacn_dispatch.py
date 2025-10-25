@@ -34,11 +34,16 @@ def handle_universe(payload: bytes, universe: int) -> None:
         return
 
     if DEBUG_RAW:
+        # Show first 20 bytes of payload
+        first_bytes = [payload[i] if i < len(payload) else None for i in range(20)]
+        print(f"[sacn_dispatch] Payload first 20 bytes: {first_bytes}")
+
         for inst in instances:
             start = inst.start_address - 1
+            print(f"[sacn_dispatch] Instance {inst.instance}: start_address={inst.start_address}, offset={start}")
             coarse = payload[start] if start < len(payload) else None
             fine = payload[start + 1] if start + 1 < len(payload) else None
-            print(f"[sacn_dispatch] raw bytes {inst.instance}: coarse={coarse} fine={fine}")
+            print(f"[sacn_dispatch] raw bytes {inst.instance}: payload[{start}]={coarse}, payload[{start+1}]={fine}")
 
     try:
         values: Dict[str, Dict[str, int]] = s2l.decode_universe(payload, instances, scaling=False)
