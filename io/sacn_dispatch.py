@@ -13,13 +13,18 @@ MANAGER_DAT_PATH = "/project1/src/s2l_manager/dispatcher"
 
 DEBUG_RAW = False
 
+# Performance: Cache instances per universe to avoid reloading config every frame
+_instances_cache: Dict[int, list] = {}
+
 
 def _instances_for_universe(universe: int) -> list[s2l.InstanceDefinition]:
-    return [
-        inst
-        for inst in s2l.load_instances()
-        if inst.enabled and inst.universe == universe
-    ]
+    if universe not in _instances_cache:
+        _instances_cache[universe] = [
+            inst
+            for inst in s2l.load_instances()
+            if inst.enabled and inst.universe == universe
+        ]
+    return _instances_cache[universe]
 
 
 def handle_universe(payload: bytes, universe: int) -> None:
@@ -46,18 +51,18 @@ def handle_universe(payload: bytes, universe: int) -> None:
     try:
         values: Dict[str, Dict[str, int]] = s2l.decode_universe(payload, instances, scaling=False)
     except s2l.DMXBufferError as exc:
-        debug(f"[sacn_dispatch] invalid DMX buffer: {exc}")  # type: ignore[name-defined]
+        print(f"[sacn_dispatch] invalid DMX buffer: {exc}")
         return
 
     defaults = s2l.load_defaults()
     target = op(MANAGER_DAT_PATH)  # type: ignore[name-defined]
     if not target:
-        debug(f"[sacn_dispatch] manager not found at {MANAGER_DAT_PATH}")  # type: ignore[name-defined]
+        print(f"[sacn_dispatch] manager not found at {MANAGER_DAT_PATH}")
         return
 
     update = getattr(target.module, "update_from_dmx", None)
     if not callable(update):
-        debug(f"[sacn_dispatch] manager at {MANAGER_DAT_PATH} missing update_from_dmx()")  # type: ignore[name-defined]
+        print(f"[sacn_dispatch] manager at {MANAGER_DAT_PATH} missing update_from_dmx()")
         return
 
     update(universe, values, defaults)
