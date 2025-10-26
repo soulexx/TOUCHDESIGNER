@@ -4,6 +4,7 @@ import re
 OSCDAT = op('/project1/io/oscout1')
 STATE  = op('/project1')  # Storage: ACTIVE_MENU ? {None, 1..5}
 DRV    = op('/project1/io/driver_led')
+BLINK  = op('/project1/io/led_blink_manager')
 
 _MULTI_ADDR_SPLIT = re.compile(r'\s*(?:&&|\|\||\||[,;\n])\s*')
 
@@ -37,9 +38,154 @@ def _send_path_spec(path_spec, payload):
         sent = True
     return sent
 
+
+def _normalize_submenu_key(value: str) -> str:
+    if not value:
+        return ''
+    cleaned = re.sub(r'[^a-z0-9]+', '_', value.strip().lower())
+    return cleaned.strip('_')
+
+
+_SUBMENU_CONFIG = {
+    4: [
+        {"key": _normalize_submenu_key("form"), "label": "submenu 4.1 form", "blink": None},
+        {"key": _normalize_submenu_key("image"), "label": "submenu 4.2 image", "blink": "slow"},
+        {"key": _normalize_submenu_key("shutter"), "label": "submenu 4.3 shutter", "blink": "fast"},
+    ],
+}
+
+
+def _submenu_state_key(menu_idx: int) -> str:
+    return f"MENU_{int(menu_idx)}_SUBINDEX"
+
+
+def _get_submenu_index(menu_idx: int):
+    cfg = _SUBMENU_CONFIG.get(int(menu_idx))
+    if not cfg:
+        return None
+    key = _submenu_state_key(menu_idx)
+    raw = STATE.fetch(key, 0)
+    try:
+        idx = int(raw)
+    except Exception:
+        idx = 0
+    idx = idx % len(cfg)
+    if raw != idx:
+        STATE.store(key, idx)
+    return idx
+
+
+def _set_submenu_index(menu_idx: int, idx: int):
+    cfg = _SUBMENU_CONFIG.get(int(menu_idx))
+    if not cfg:
+        return
+    total = len(cfg)
+    idx = int(idx) % total
+    STATE.store(_submenu_state_key(menu_idx), idx)
+
+
+def _active_submenu_entry(menu_idx: int):
+    cfg = _SUBMENU_CONFIG.get(int(menu_idx))
+    if not cfg:
+        return None
+    idx = _get_submenu_index(menu_idx)
+    if idx is None:
+        return None
+    return cfg[int(idx) % len(cfg)]
+
+
+def _advance_submenu(menu_idx: int):
+    cfg = _SUBMENU_CONFIG.get(int(menu_idx))
+    if not cfg:
+        return
+    idx = _get_submenu_index(menu_idx) or 0
+    _set_submenu_index(menu_idx, idx + 1)
+    entry = _active_submenu_entry(menu_idx)
+    try:
+        label = entry.get("label") if entry else "?"
+        print(f"[submenu] menu_{menu_idx} -> {label}")
+    except Exception:
+        pass
+
+
+def _active_submenu_key(menu_idx: int) -> str:
+    entry = _active_submenu_entry(menu_idx)
+    return entry.get("key", "") if entry else ""
+
+
+def _submenu_tracker(menu_idx: int):
+    return {
+        "has_sections": False,
+        "current": "",
+        "active": _active_submenu_key(menu_idx),
+    }
+
+
+def _update_submenu_tracker(tracker, topic_value: str):
+    if not topic_value:
+        return False
+    text = topic_value.strip()
+    if not text.lower().startswith("__submenu__"):
+        return False
+    rest = text[len("__submenu__"):].strip(" _:\t")
+    tracker["has_sections"] = True
+    tracker["current"] = _normalize_submenu_key(rest)
+    return True
+
+
+def _row_visible_for_submenu(tracker) -> bool:
+    if not tracker["has_sections"]:
+        return True
+    current = tracker.get("current") or ""
+    if not current:
+        return True
+    active = tracker.get("active") or ""
+    if not active:
+        return True
+    return current == active
+
+
+def _blink_module():
+    return getattr(BLINK, "module", None) if BLINK else None
+
+
+def _update_submenu_led_feedback(active_menu_idx: int):
+    if 4 not in _SUBMENU_CONFIG:
+        return
+    mod = _blink_module()
+    if not mod:
+        return
+    target = "btn/4"
+    color = _menu_color(4)
+    base_state = "press" if int(active_menu_idx) == 4 else "idle"
+    try:
+        mod.update_base(target, base_state, color)
+    except Exception:
+        pass
+    if int(active_menu_idx) != 4:
+        try:
+            mod.stop(target)
+        except Exception:
+            pass
+        return
+    entry = _active_submenu_entry(4)
+    pattern = entry.get("blink") if entry else None
+    if pattern:
+        try:
+            mod.start(target, pattern, color=color, base_state=(base_state, color), priority=10)
+        except Exception:
+            pass
+    else:
+        try:
+            mod.stop(target)
+        except Exception:
+            pass
+
 def _set_active(idx:int):
     idx = int(idx)
     STATE.store('ACTIVE_MENU', idx)
+    if idx in _SUBMENU_CONFIG:
+        _get_submenu_index(idx)
     try:
         print('[menu active] menu_' + str(idx))
     except Exception:
@@ -49,6 +195,12 @@ def _get_active():
     return STATE.fetch('ACTIVE_MENU', None)
 
 DEFAULT_MENU = 5
+MENU_SELECT_ACTIONS = {
+    # menu button index -> OSC path spec (multi-send supported)
+    1: "/eos/key/macro && /eos/key/1 && /eos/key/2 && /eos/key/0 && /eos/key/1 && /eos/key/enter",
+    2: "/eos/key/macro && /eos/key/1 && /eos/key/2 && /eos/key/0 && /eos/key/2 && /eos/key/enter",
+    3: "/eos/key/macro && /eos/key/1 && /eos/key/2 && /eos/key/0 && /eos/key/3 && /eos/key/enter",
+}
 
 _FADER_QUANT_DIGITS = 3
 
@@ -80,11 +232,22 @@ def _lookup(menu_idx:int, topic:str):
     cols = { T[0,c].val.strip().lower(): c for c in range(T.numCols) }
     ci_topic = cols.get('topic'); ci_path = cols.get('path_out')
     ci_scale = cols.get('scale'); ci_en   = cols.get('enabled')
+    if ci_topic is None:
+        return None, 1.0
     t = (topic or '').lstrip('/')
+    tracker = _submenu_tracker(menu_idx)
     for r in range(1, T.numRows):
+        topic_cell = T[r,ci_topic]
+        topic_val = topic_cell.val.strip() if topic_cell else ''
+        if topic_val and _update_submenu_tracker(tracker, topic_val):
+            continue
+        if not _row_visible_for_submenu(tracker):
+            continue
         if ci_en is not None and T[r,ci_en] and T[r,ci_en].val.strip() != '1':
             continue
-        if T[r,ci_topic] and T[r,ci_topic].val.strip().lstrip('/') == t:
+        if not topic_cell:
+            continue
+        if topic_cell.val.strip().lstrip('/') == t:
             path  = T[r,ci_path].val if (ci_path is not None and T[r,ci_path]) else ''
             scale = float(T[r,ci_scale].val) if (ci_scale is not None and T[r,ci_scale] and T[r,ci_scale].val) else 1.0
             return path, scale
@@ -99,10 +262,17 @@ def _topic_color(menu_idx:int, topic:str):
     if ci_topic is None or ci_color is None:
         return ''
     t = (topic or '').lstrip('/')
+    tracker = _submenu_tracker(menu_idx)
     for r in range(1, T.numRows):
-        if not T[r,ci_topic]:
+        topic_cell = T[r,ci_topic]
+        topic_val = topic_cell.val.strip() if topic_cell else ''
+        if topic_val and _update_submenu_tracker(tracker, topic_val):
             continue
-        if T[r,ci_topic].val.strip().lstrip('/') == t:
+        if not _row_visible_for_submenu(tracker):
+            continue
+        if not topic_cell:
+            continue
+        if topic_cell.val.strip().lstrip('/') == t:
             return T[r,ci_color].val.strip() if T[r,ci_color] else ''
     return ''
 
@@ -134,7 +304,14 @@ def _menu_color(menu_idx:int):
     cols = { T[0,c].val.strip().lower(): c for c in range(T.numCols) }
     ci_topic=cols.get('topic'); ci_color=cols.get('led_color')
     if ci_topic is None or ci_color is None: return 'white'
+    tracker = _submenu_tracker(menu_idx)
     for r in range(1, T.numRows):
+        topic_cell = T[r,ci_topic]
+        topic_val = topic_cell.val.strip() if topic_cell else ''
+        if topic_val and _update_submenu_tracker(tracker, topic_val):
+            continue
+        if not _row_visible_for_submenu(tracker):
+            continue
         if T[r,ci_topic] and T[r,ci_topic].val.strip() == '__menu_color__':
             v = T[r,ci_color].val.strip()
             return v if v else 'white'
@@ -192,6 +369,7 @@ def apply_menu_leds(menu_idx:int):
         color_i = _menu_color(i)
         state = "press" if i == int(menu_idx) else "idle"
         DRV.module.send_led(topic, state, color_i, do_send=True)
+    _update_submenu_led_feedback(menu_idx)
 
 def _send_osc(addr, payload):
     try:
@@ -217,14 +395,21 @@ def handle_event(topic, value):
             idx = None
         if idx and 1 <= idx <= 5:
             try:
-                pressed = float(value) >= 0.5
+                analog_value = float(value)
             except (ValueError, TypeError):
-                pressed = False
+                analog_value = 0.0
+            pressed = analog_value >= 0.5
+            previous = _get_active()
             if pressed:
-                previous = _get_active()
                 if previous != idx:
                     _set_active(idx)
                     apply_menu_leds(idx)
+                elif idx == 4:
+                    _advance_submenu(idx)
+                    apply_menu_leds(idx)
+            action_spec = MENU_SELECT_ACTIONS.get(idx)
+            if action_spec is not None:
+                _send_path_spec(action_spec, [analog_value])
             return True
 
         act_btn = _get_active()

@@ -1,3 +1,4 @@
+"""OSC callback implementation for TouchDesigner."""
 import os
 import sys
 from pathlib import Path
