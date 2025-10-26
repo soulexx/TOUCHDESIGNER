@@ -13,7 +13,8 @@ def onFrameStart(frame):
         print('[tick_exec] palette modules unavailable:', exc)
         return
     state.attach_base(base)
-    fps = max(int(absTime.rate), 1)
+    # Use project timeline FPS (default 60 if not set)
+    fps = max(int(project.cookRate), 1) if hasattr(project, 'cookRate') else 60
     if frame % fps == 0:
         watchdog.ensure_subscribed(base)
     pump_div = max(int(fps / 5), 1)
