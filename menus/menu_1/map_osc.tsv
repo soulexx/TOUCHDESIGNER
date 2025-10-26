@@ -2,14 +2,14 @@
 enc/1/delta	midicraft	1	6	/test/m1/enc1	1	1	blue
 fader/1	midicraft	1	16	/test/m1/fader1	1	1	blue
 __menu_color__						1	red
-btn/11	midicraft	1	21		1	1	red
-btn/12	midicraft	1	22		1	1	red
-btn/13	midicraft	1	23		1	1	red
-btn/14	midicraft	1	24		1	1	red
-btn/15	midicraft	1	25		1	1	red
-btn/21	midicraft	1	26		1	1	red
-btn/22	midicraft	1	27		1	1	red
-btn/23	midicraft	1	28		1	1	red
-btn/24	midicraft	1	29		1	1	red
-btn/25	midicraft	1	30		1	1	red
+btn/11	midicraft	1	21	/eos/key/intensity_palette && /eos/key/1 && /eos/key/0 && /eos/key/0 && /eos/key/1 && /eos/key/enter	1	1	red
+btn/12	midicraft	1	22	/eos/key/intensity_palette && /eos/key/1 && /eos/key/0 && /eos/key/0 && /eos/key/2 && /eos/key/enter	1	1	red
+btn/13	midicraft	1	23	/eos/key/intensity_palette && /eos/key/1 && /eos/key/0 && /eos/key/0 && /eos/key/3 && /eos/key/enter	1	1	red
+btn/14	midicraft	1	24	/eos/key/intensity_palette && /eos/key/1 && /eos/key/0 && /eos/key/0 && /eos/key/4 && /eos/key/enter	1	1	red
+btn/15	midicraft	1	25	/eos/key/intensity_palette && /eos/key/1 && /eos/key/0 && /eos/key/0 && /eos/key/5 && /eos/key/enter	1	1	red
+btn/21	midicraft	1	26	/eos/key/intensity_palette && /eos/key/1 && /eos/key/0 && /eos/key/0 && /eos/key/6 && /eos/key/enter	1	1	red
+btn/22	midicraft	1	27	/eos/key/intensity_palette && /eos/key/1 && /eos/key/0 && /eos/key/0 && /eos/key/7 && /eos/key/enter	1	1	red
+btn/23	midicraft	1	28	/eos/key/intensity_palette && /eos/key/1 && /eos/key/0 && /eos/key/0 && /eos/key/8 && /eos/key/enter	1	1	red
+btn/24	midicraft	1	29	/eos/key/intensity_palette && /eos/key/1 && /eos/key/0 && /eos/key/0 && /eos/key/9 && /eos/key/enter	1	1	red
+btn/25	midicraft	1	30	/eos/key/intensity_palette && /eos/key/1 && /eos/key/0 && /eos/key/1 && /eos/key/0 && /eos/key/enter	1	1	red
 

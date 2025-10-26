@@ -4,9 +4,9 @@ import re
 OSCDAT = op('/project1/io/oscout1')
 STATE  = op('/project1')  # Storage: ACTIVE_MENU ? {None, 1..5}
 DRV    = op('/project1/io/driver_led')
-BLINK  = op('/project1/io/led_blink_manager')
 
 _MULTI_ADDR_SPLIT = re.compile(r'\s*(?:&&|\|\||\||[,;\n])\s*')
+_BLINK_WARNED = False
 
 def _iter_path_targets(path_spec):
     """Return normalized OSC addresses for a map entry (supports multi-send)."""
@@ -129,6 +129,9 @@ def _advance_submenu(menu_idx: int):
         print(f"[submenu] menu_{menu_idx} -> {label}")
     except Exception:
         pass
+    active_menu = _get_active()
+    if active_menu:
+        _update_submenu_led_feedback(active_menu)
 
 
 def _active_submenu_key(menu_idx: int) -> str:
@@ -176,7 +179,8 @@ def _row_visible_for_submenu(tracker) -> bool:
 
 
 def _blink_module():
-    return getattr(BLINK, "module", None) if BLINK else None
+    blink_op = op('/project1/io/led_blink_manager')
+    return getattr(blink_op, "module", None) if blink_op else None
 
 
 def _update_submenu_led_feedback(active_menu_idx: int):
@@ -184,7 +188,15 @@ def _update_submenu_led_feedback(active_menu_idx: int):
         return
     mod = _blink_module()
     if not mod:
+        global _BLINK_WARNED
+        if not _BLINK_WARNED:
+            try:
+                print("[submenu blink] WARN: led_blink_manager missing")
+            except Exception:
+                pass
+            _BLINK_WARNED = True
         return
+    _BLINK_WARNED = False
     target = "btn/4"
     color = _menu_color(4)
     base_state = "press" if int(active_menu_idx) == 4 else "idle"
@@ -202,6 +214,7 @@ def _update_submenu_led_feedback(active_menu_idx: int):
     pattern = entry.get("blink") if entry else None
     if pattern:
         try:
+            mod.stop(target, restore=False)
             mod.start(target, pattern, color=color, base_state=(base_state, color), priority=10)
         except Exception:
             pass
