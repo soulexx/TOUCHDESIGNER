@@ -1,8 +1,19 @@
 """Parse incoming EOS OSC payloads and update palette tables."""
 import re
 from typing import Sequence
-from . import state, pump
-from .state import ORDER, TABLE_HEADER
+
+# TouchDesigner-compatible module loading
+def _get_module(name):
+    """Get palette_logic module using TouchDesigner's mod() function."""
+    base = op('/project1')
+    if not base:
+        raise RuntimeError("Project base not found")
+    return mod(f'/project1/palette_logic/{name}')
+
+state = _get_module('state')
+pump = _get_module('pump')
+ORDER = state.ORDER
+TABLE_HEADER = state.TABLE_HEADER
 
 RE_COUNT = re.compile(r"^/eos/out/get/(?P<typ>ip|fp|cp|bp)/count$")
 RE_LIST = re.compile(
