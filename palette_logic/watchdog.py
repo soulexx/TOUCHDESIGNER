@@ -1,7 +1,16 @@
 """Subscription / count watchdog."""
 import time
-from . import state
-from .state import ORDER
+
+# TouchDesigner-compatible module loading
+def _get_module(name):
+    """Get palette_logic module using TouchDesigner's mod() function."""
+    base = op('/project1')
+    if not base:
+        raise RuntimeError("Project base not found")
+    return mod(f'/project1/palette_logic/{name}')
+
+state = _get_module('state')
+ORDER = state.ORDER
 
 SUBSCRIBE_BACKOFF = 5.0
 COUNT_BACKOFF = 10.0
