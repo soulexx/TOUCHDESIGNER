@@ -103,11 +103,11 @@ def _ch_note_for_target(target):
     Single Source of Truth: midicraft_enc_api.led_note_for_target(target) -> (ch, note)
     """
     if not API:
-        print("[driver_led] ERR: API op missing")
+        print("[driver_led] ERROR: API op missing")
         return None
     func = getattr(API.module, "led_note_for_target", None)
     if not callable(func):
-        print("[driver_led] ERR: API.led_note_for_target missing")
+        print("[driver_led] ERROR: API.led_note_for_target missing")
         return None
     try:
         ch, note = func(str(target))

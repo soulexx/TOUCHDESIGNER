@@ -16,7 +16,7 @@ ENC_COARSE_STEP_MIN  = 4     # minimaler coarse-step (Betrag)
 ENC_COARSE_STEP_MAX  = 10    # maximaler coarse-step
 ENC_COARSE_SPEED_MAX = 40.0  # cps -> maximale Skalierung
 
-ENC_DEBUG            = True  # True -> Debug-Log pro Event
+ENC_DEBUG            = False  # True -> Debug-Log pro Event
 
 # Fader
 FADER_ALPHA = 1.0
