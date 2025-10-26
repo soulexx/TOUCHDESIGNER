@@ -1,4 +1,4 @@
-# /project1/layers/menus/menu_engine — minimal & robust
+# /project1/layers/menus/menu_engine ï¿½ minimal & robust
 
 OSCDAT = op('/project1/io/oscout1')
 STATE  = op('/project1')  # Storage: ACTIVE_MENU ? {None, 1..5}
@@ -180,12 +180,12 @@ def handle_event(topic, value):
     if t.startswith('btn/'):
         try:
             idx = int(t.split('/')[-1])
-        except:
+        except (ValueError, IndexError, AttributeError):
             idx = None
         if idx and 1 <= idx <= 5:
             try:
                 pressed = float(value) >= 0.5
-            except:
+            except (ValueError, TypeError):
                 pressed = False
             if pressed:
                 previous = _get_active()
@@ -202,7 +202,7 @@ def handle_event(topic, value):
                 if color:
                     try:
                         state = 'press' if float(value) >= 0.5 else 'idle'
-                    except:
+                    except (ValueError, TypeError):
                         state = 'idle'
                     drv.module.send_led(t, state, color, do_send=True)
         # Button-Events ohne Menue-Wechsel laufen weiter zur OSC-Verarbeitung
@@ -309,7 +309,7 @@ def handle_event(topic, value):
                 _send_osc(send_path, [payload_out])
         return True
 
-    # 3) Fader 14-bit geglättet ('fader/x')
+    # 3) Fader 14-bit geglï¿½ttet ('fader/x')
     if t.startswith('fader/'):
         parts = t.split('/')
         base_topic = '/'.join(parts[:2]) if len(parts) > 2 and parts[2] in ('msb', 'lsb') else t
