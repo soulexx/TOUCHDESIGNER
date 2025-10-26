@@ -48,9 +48,9 @@ def _normalize_submenu_key(value: str) -> str:
 
 _SUBMENU_CONFIG = {
     4: [
-        {"key": _normalize_submenu_key("form"), "label": "submenu 4.1 form", "blink": None},
-        {"key": _normalize_submenu_key("image"), "label": "submenu 4.2 image", "blink": "slow"},
-        {"key": _normalize_submenu_key("shutter"), "label": "submenu 4.3 shutter", "blink": "fast"},
+        {"key": _normalize_submenu_key("form"), "label": "submenu 4.1 form", "blink": "submenu1"},
+        {"key": _normalize_submenu_key("image"), "label": "submenu 4.2 image", "blink": "submenu2"},
+        {"key": _normalize_submenu_key("shutter"), "label": "submenu 4.3 shutter", "blink": "submenu3"},
     ],
 }
 
