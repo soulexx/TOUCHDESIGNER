@@ -30,15 +30,17 @@ def _clean_label(tokens: Sequence[object]) -> str:
 
 
 def _update_row(palette_type: str, index: int, **fields) -> None:
-    rows = max(state.state.counts.get(palette_type, 0), index + 1)
+    # index is now the 1-based palette number (not 0-based array index)
+    rows = max(state.state.counts.get(palette_type, 0), index)
     table = state.ensure_table(palette_type, rows)
     if not table:
         return
     header = TABLE_HEADER
-    row = index + 1
+    # Row 0 = header, Row 1 = Palette #1, etc.
+    row = index
     table[row, header.index("index")] = str(index)
-    if state.state.counts.get(palette_type, 0) < index + 1:
-        state.state.counts[palette_type] = index + 1
+    if state.state.counts.get(palette_type, 0) < index:
+        state.state.counts[palette_type] = index
     for key, value in fields.items():
         if value is None or key not in header:
             continue

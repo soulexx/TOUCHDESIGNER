@@ -6,6 +6,7 @@ from .state import ORDER
 
 INDEX_TIMEOUT = 3.0
 RETRY_LIMIT = 3
+MIN_REQUEST_INTERVAL = 0.05  # 50ms = max 20 requests/second per palette type
 
 
 def attach_base(base) -> None:
@@ -28,7 +29,8 @@ def _apply_count(palette_type: str, count: int) -> None:
     st.counts[palette_type] = count
     queue = st.queues[palette_type]
     queue.clear()
-    queue.extend(range(count))
+    # EOS uses 1-based palette numbers (1, 2, 3, ..., count)
+    queue.extend(range(1, count + 1))
     st.active[palette_type] = None
     st.sent_at[palette_type] = 0.0
     st.attempts[palette_type] = 0
@@ -76,7 +78,8 @@ def tick(base) -> None:
             print(f"[palette] WARN giving up on {palette_type}:{active}")
             _send_next_index(palette_type)
         else:
-            osc.sendOSC(f"/eos/get/{palette_type}/index/{active}", [])
+            # Use correct EOS OSC API: /eos/get/{type}/{num}/list/{index}/{count}
+            osc.sendOSC(f"/eos/get/{palette_type}/{active}/list/0/1", [])
             st.sent_at[palette_type] = now
             st.attempts[palette_type] += 1
             print(
@@ -91,12 +94,20 @@ def _send_next_index(palette_type: str) -> None:
     queue = st.queues[palette_type]
     if not queue:
         return
+
+    # Rate limiting: enforce minimum interval between requests
+    now = time.perf_counter()
+    time_since_last = now - st.sent_at[palette_type]
+    if time_since_last < MIN_REQUEST_INTERVAL:
+        return  # Too soon, wait for next tick
+
     osc = state.get_osc_out()
     if not osc:
         return
-    index = queue[0]
-    osc.sendOSC(f"/eos/get/{palette_type}/index/{index}", [])
-    st.active[palette_type] = index
-    st.sent_at[palette_type] = time.perf_counter()
+    palette_num = queue[0]
+    # Use correct EOS OSC API: /eos/get/{type}/{num}/list/{index}/{count}
+    osc.sendOSC(f"/eos/get/{palette_type}/{palette_num}/list/0/1", [])
+    st.active[palette_type] = palette_num
+    st.sent_at[palette_type] = now
     st.attempts[palette_type] = 1
-    print(f"[palette] send index {palette_type} -> {index}")
+    print(f"[palette] send {palette_type} palette #{palette_num}")
