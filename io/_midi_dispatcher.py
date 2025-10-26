@@ -4,8 +4,17 @@ import time
 from pathlib import Path
 from typing import Optional
 
-# Portable path resolution: support both environment variable and relative path
-BASE_PATH = Path(os.getenv('TOUCHDESIGNER_ROOT', Path(__file__).resolve().parent.parent))
+# TouchDesigner-compatible path resolution
+try:
+    if 'TOUCHDESIGNER_ROOT' in os.environ:
+        BASE_PATH = Path(os.getenv('TOUCHDESIGNER_ROOT'))
+    else:
+        try:
+            BASE_PATH = Path(project.folder).resolve()  # type: ignore
+        except NameError:
+            BASE_PATH = Path(__file__).resolve().parent.parent
+except Exception:
+    BASE_PATH = Path(r"c:\_DEV\TOUCHDESIGNER")
 SRC_PATH = BASE_PATH / "src"
 IO_PATH = BASE_PATH / "io"
 for candidate in (SRC_PATH, IO_PATH):

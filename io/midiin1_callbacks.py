@@ -2,8 +2,21 @@ import os
 import sys
 from pathlib import Path
 
-# Portable path resolution: support both environment variable and relative path
-BASE_PATH = Path(os.getenv('TOUCHDESIGNER_ROOT', Path(__file__).resolve().parent.parent))
+# TouchDesigner-compatible path resolution
+try:
+    if 'TOUCHDESIGNER_ROOT' in os.environ:
+        BASE_PATH = Path(os.getenv('TOUCHDESIGNER_ROOT'))
+    else:
+        try:
+            # Try TouchDesigner's project.folder
+            BASE_PATH = Path(project.folder).resolve()  # type: ignore
+        except NameError:
+            # Not in TouchDesigner, use __file__
+            BASE_PATH = Path(__file__).resolve().parent.parent
+except Exception:
+    # Last resort: hardcoded path
+    BASE_PATH = Path(r"c:\_DEV\TOUCHDESIGNER")
+
 IO_PATH = BASE_PATH / "io"
 if str(IO_PATH) not in sys.path:
     sys.path.insert(0, str(IO_PATH))

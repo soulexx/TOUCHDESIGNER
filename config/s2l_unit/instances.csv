@@ -1,2 +1,11 @@
-instance,enabled,universe,start_address,eos_ip,description
-S2L_UNIT_1,true,1,1,10.0.0.101,Main room submaster
+instance,enabled,universe,start_address
+S2L_UNIT_1,true,16,1
+S2L_UNIT_2,true,16,21
+S2L_UNIT_3,true,16,41
+S2L_UNIT_4,true,16,61
+S2L_UNIT_5,true,16,81
+S2L_UNIT_6,true,16,101
+S2L_UNIT_7,true,16,121
+S2L_UNIT_8,true,16,141
+S2L_UNIT_9,true,16,161
+S2L_UNIT_10,true,16,181
