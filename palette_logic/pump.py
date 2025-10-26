@@ -17,6 +17,7 @@ def queue_counts(base, mapping: Dict[str, int]) -> None:
     state.attach_base(base)
     now = time.perf_counter()
     state.state.last_count_request = now
+    print(f"[palette] DEBUG received counts: {mapping}")
     for palette_type, count in mapping.items():
         _apply_count(palette_type, int(count))
     for palette_type in mapping.keys():
@@ -35,6 +36,7 @@ def _apply_count(palette_type: str, count: int) -> None:
     st.sent_at[palette_type] = 0.0
     st.attempts[palette_type] = 0
     state.ensure_table(palette_type, count)
+    print(f"[palette] DEBUG {palette_type} queue initialized: {count} palettes (1-{count})")
 
 
 def on_list_ack(base, palette_type: str, index: int) -> None:
@@ -42,8 +44,10 @@ def on_list_ack(base, palette_type: str, index: int) -> None:
     st = state.state
     active = st.active[palette_type]
     if active != index:
+        print(f"[palette] DEBUG {palette_type} ACK mismatch: expected {active}, got {index}")
         return
     queue = st.queues[palette_type]
+    remaining = len(queue)
     if queue and queue[0] == index:
         queue.popleft()
     elif index in queue:
@@ -51,6 +55,7 @@ def on_list_ack(base, palette_type: str, index: int) -> None:
     st.active[palette_type] = None
     st.sent_at[palette_type] = 0.0
     st.attempts[palette_type] = 0
+    print(f"[palette] DEBUG {palette_type} palette #{index} ACK (queue: {remaining-1} remaining)")
     _send_next_index(palette_type)
 
 
@@ -99,6 +104,8 @@ def _send_next_index(palette_type: str) -> None:
     now = time.perf_counter()
     time_since_last = now - st.sent_at[palette_type]
     if time_since_last < MIN_REQUEST_INTERVAL:
+        # Uncomment for verbose rate limiting debug:
+        # print(f"[palette] DEBUG {palette_type} rate limited (wait {MIN_REQUEST_INTERVAL - time_since_last:.3f}s)")
         return  # Too soon, wait for next tick
 
     osc = state.get_osc_out()

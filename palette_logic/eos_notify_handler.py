@@ -58,6 +58,7 @@ def on_osc_receive(address: str, args: Sequence[object], timestamp: float = 0.0)
     if match:
         palette_type = match.group("typ")
         count = int(float(args[0])) if args else 0
+        print(f"[palette] DEBUG received count: {palette_type}={count} | OSC: {address} {args}")
         pump.queue_counts(base, {palette_type: count})
         return
 
@@ -68,6 +69,7 @@ def on_osc_receive(address: str, args: Sequence[object], timestamp: float = 0.0)
         index = int(float(args[0])) if args else int(match.group("idx"))
         uid = str(args[1]) if len(args) > 1 else ""
         label = _clean_label(args[2:])
+        print(f"[palette] DEBUG received list: {palette_type} #{palette_num} idx={index} uid={uid} label='{label}'")
         _update_row(
             palette_type, index, num=palette_num, uid=uid, label=label
         )
@@ -79,6 +81,7 @@ def on_osc_receive(address: str, args: Sequence[object], timestamp: float = 0.0)
         palette_type = match.group("typ")
         index = int(float(args[0])) if args else int(match.group("idx"))
         channels = " ".join(str(item) for item in args[1:])
+        print(f"[palette] DEBUG received channels: {palette_type} #{index} channels='{channels}'")
         _update_row(palette_type, index, channels=channels)
         return
 
@@ -87,5 +90,9 @@ def on_osc_receive(address: str, args: Sequence[object], timestamp: float = 0.0)
         palette_type = match.group("typ")
         index = int(float(args[0])) if args else int(match.group("idx"))
         bytype = " ".join(str(item) for item in args[1:])
+        print(f"[palette] DEBUG received bytype: {palette_type} #{index} bytype='{bytype}'")
         _update_row(palette_type, index, bytype=bytype)
         return
+
+    # Log unrecognized EOS messages for debugging
+    print(f"[palette] DEBUG unrecognized OSC: {address} {args}")
