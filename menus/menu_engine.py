@@ -2,6 +2,7 @@
 
 OSCDAT = op('/project1/io/oscout1')
 STATE  = op('/project1')  # Storage: ACTIVE_MENU ? {None, 1..5}
+DRV    = op('/project1/io/driver_led')
 
 def _set_active(idx:int):
     idx = int(idx)
@@ -130,13 +131,12 @@ _LEVEL_MODE_CACHE = {}  # topic -> last wheel mode (fine=1.0, coarse=0.0)
 
 def apply_menu_leds(menu_idx:int):
     """Nur Buttons bekommen LEDs; Encoder/EncPush/Fader NICHT."""
-    T   = op(f"/project1/layers/menus/menu_{int(menu_idx)}/map_osc")
-    drv = op("/project1/io/driver_led")
-    if not T or not drv:
-        print("[menu] WARN: map/driver missing"); 
+    T = op(f"/project1/layers/menus/menu_{int(menu_idx)}/map_osc")
+    if not T or not DRV:
+        print("[menu] WARN: map/driver missing");
         return
     for topic in _all_menu_button_topics():
-        drv.module.send_led(topic, "off", "", do_send=True)
+        DRV.module.send_led(topic, "off", "", do_send=True)
 
     cols = { T[0,c].val.strip().lower(): c for c in range(T.numCols) }
     ci_topic = cols.get("topic"); ci_color = cols.get("led_color"); ci_en = cols.get("enabled")
@@ -152,13 +152,13 @@ def apply_menu_leds(menu_idx:int):
             continue
         color = (T[r,ci_color].val.strip() if (ci_color is not None and T[r,ci_color]) else "")
         if color:
-            drv.module.send_led(topic, "idle", color, do_send=True)
+            DRV.module.send_led(topic, "idle", color, do_send=True)
 
     for i in range(1,6):
         topic = f"btn/{i}"
         color_i = _menu_color(i)
         state = "press" if i == int(menu_idx) else "idle"
-        drv.module.send_led(topic, state, color_i, do_send=True)
+        DRV.module.send_led(topic, state, color_i, do_send=True)
 
 def _send_osc(addr, payload):
     try:
@@ -195,16 +195,14 @@ def handle_event(topic, value):
             return True
 
         act_btn = _get_active()
-        if act_btn:
-            drv = op('/project1/io/driver_led')
-            if drv:
-                color = _button_color(act_btn, t)
-                if color:
-                    try:
-                        state = 'press' if float(value) >= 0.5 else 'idle'
-                    except (ValueError, TypeError):
-                        state = 'idle'
-                    drv.module.send_led(t, state, color, do_send=True)
+        if act_btn and DRV:
+            color = _button_color(act_btn, t)
+            if color:
+                try:
+                    state = 'press' if float(value) >= 0.5 else 'idle'
+                except (ValueError, TypeError):
+                    state = 'idle'
+                DRV.module.send_led(t, state, color, do_send=True)
         # Button-Events ohne Menue-Wechsel laufen weiter zur OSC-Verarbeitung
 
     act = _get_active()
