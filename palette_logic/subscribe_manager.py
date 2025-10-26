@@ -167,14 +167,16 @@ def request_indices_for_count(pal_type: str, count: int):
         queue.clear()
         _ACTIVE_INDEX[pal_type] = None
         _trim_table(pal_type, count)
-        queue.extend(range(count))
+        # EOS uses 1-based palette numbers (1, 2, 3, ..., count)
+        queue.extend(range(1, count + 1))
         _LAST_COUNTS[pal_type] = count
         print(f"[palette] restart queue {pal_type}: count={count}")
         _send_next_index(pal_type)
         return
 
     if count > prev:
-        new_indices = list(range(prev, count))
+        # Add new palette numbers (1-based)
+        new_indices = list(range(prev + 1, count + 1))
         queue.extend(new_indices)
         _extend_table(pal_type, count)
         _LAST_COUNTS[pal_type] = count
@@ -195,10 +197,11 @@ def _send_next_index(pal_type: str):
         return
     if not queue:
         return
-    idx = queue.popleft()
-    _ACTIVE_INDEX[pal_type] = idx
-    _send_osc(f"/eos/get/{pal_type}/index/{idx}", [])
-    print(f"[palette] send index {pal_type} -> {idx}")
+    palette_num = queue.popleft()
+    _ACTIVE_INDEX[pal_type] = palette_num
+    # Use correct EOS OSC API: /eos/get/{type}/{num}/list/{index}/{count}
+    _send_osc(f"/eos/get/{pal_type}/{palette_num}/list/0/1", [])
+    print(f"[palette] send {pal_type} palette #{palette_num}")
 
 
 def notify_index_processed(pal_type: str, index: int):
@@ -250,15 +253,17 @@ def sync_palettes(pal_type: str = 'ip', timeout: float = 5.0):
             raise
     _trim_table(pal_type, count)
 
-    for idx in range(count):
+    # EOS uses 1-based palette numbers
+    for palette_num in range(1, count + 1):
         osc_in.store('last_row', osc_in.numRows)
-        _send_osc(f'/eos/get/{pal_type}/index/{idx}', [])
+        # Use correct EOS OSC API: /eos/get/{type}/{num}/list/{index}/{count}
+        _send_osc(f'/eos/get/{pal_type}/{palette_num}/list/0/1', [])
         try:
-            parsed = _wait_for_message(_index_match(idx), timeout=timeout)
+            parsed = _wait_for_message(_index_match(palette_num), timeout=timeout)
         except RuntimeError:
-            print(f'[palette] WARN timeout waiting for {pal_type} index {idx}')
+            print(f'[palette] WARN timeout waiting for {pal_type} palette #{palette_num}')
             continue
-        handler._update_palette_row(pal_type, idx, parsed['num'], parsed['uid'], parsed['label'])
+        handler._update_palette_row(pal_type, palette_num, parsed['num'], parsed['uid'], parsed['label'])
 
     _INDEX_QUEUES[pal_type].clear()
     _ACTIVE_INDEX[pal_type] = None
