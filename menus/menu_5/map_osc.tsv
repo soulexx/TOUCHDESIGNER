@@ -5,7 +5,7 @@ btn/11	midicraft	1	21	/eos/key/stop	1	1	red
 btn/12	midicraft	1	22		1	1	yellow
 btn/13	midicraft	1	23		1	1	yellow
 btn/14	midicraft	1	24		1	1	yellow
-btn/15	midicraft	1	25		1	1	yellow
+btn/15	midicraft	1	25	/eos/key/group && /eos/key/next	1	1	yellow
 btn/21	midicraft	1	26	/eos/key/go_0	1	1	green
 btn/22	midicraft	1	27		1	1	yellow
 btn/23	midicraft	1	28		1	1	yellow

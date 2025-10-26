@@ -1,8 +1,41 @@
 # /project1/layers/menus/menu_engine � minimal & robust
+import re
 
 OSCDAT = op('/project1/io/oscout1')
 STATE  = op('/project1')  # Storage: ACTIVE_MENU ? {None, 1..5}
 DRV    = op('/project1/io/driver_led')
+
+_MULTI_ADDR_SPLIT = re.compile(r'\s*(?:&&|\|\||\||[,;\n])\s*')
+
+def _iter_path_targets(path_spec):
+    """Return normalized OSC addresses for a map entry (supports multi-send)."""
+    if path_spec is None:
+        return []
+    if isinstance(path_spec, (list, tuple)):
+        paths = []
+        for item in path_spec:
+            paths.extend(_iter_path_targets(item))
+        return paths
+    try:
+        raw = str(path_spec)
+    except Exception:
+        raw = ''
+    raw = raw.replace('\r', '').strip()
+    if not raw:
+        return []
+    if _MULTI_ADDR_SPLIT.search(raw):
+        parts = _MULTI_ADDR_SPLIT.split(raw)
+    else:
+        parts = [raw]
+    return [p for p in (part.strip() for part in parts) if p]
+
+def _send_path_spec(path_spec, payload):
+    """Send payload to each OSC address defined in the spec."""
+    sent = False
+    for addr in _iter_path_targets(path_spec):
+        _send_osc(addr, payload)
+        sent = True
+    return sent
 
 def _set_active(idx:int):
     idx = int(idx)
@@ -334,9 +367,9 @@ def handle_event(topic, value):
         if isinstance(val_out, (int, float)) and t.startswith('fader/'):
             val_out = _quantize_fader_value(val_out)
         try:
-            _send_osc(path, [float(val_out) * scale])
+            _send_path_spec(path, [float(val_out) * scale])
         except Exception:
-            _send_osc(path, [val_out])
+            _send_path_spec(path, [val_out])
     return True
 
 
