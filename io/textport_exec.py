@@ -9,11 +9,11 @@ from pathlib import Path
 try:
     if 'TOUCHDESIGNER_ROOT' in os.environ:
         BASE_PATH = Path(os.getenv('TOUCHDESIGNER_ROOT'))
-    elif 'project' in dir():
+    elif 'project' in globals():
         BASE_PATH = Path(project.folder).resolve()  # type: ignore
     else:
         BASE_PATH = Path(__file__).resolve().parent.parent
-except:
+except Exception:
     BASE_PATH = Path(r"c:\_DEV\TOUCHDESIGNER")
 SRC_PATH = BASE_PATH / "src"
 if str(SRC_PATH) not in sys.path:
