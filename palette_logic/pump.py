@@ -1,8 +1,17 @@
 """Serial palette index pump."""
 import time
 from typing import Dict
-from . import state
-from .state import ORDER
+
+# TouchDesigner-compatible module loading
+def _get_module(name):
+    """Get palette_logic module using TouchDesigner's mod() function."""
+    base = op('/project1')
+    if not base:
+        raise RuntimeError("Project base not found")
+    return mod(f'/project1/palette_logic/{name}')
+
+state = _get_module('state')
+ORDER = state.ORDER
 
 INDEX_TIMEOUT = 3.0
 RETRY_LIMIT = 3
