@@ -88,18 +88,19 @@ def _handle_palette_event(address: str, args: Sequence[object]) -> None:
         print("[osc_in] palette handler error:", address, exc)
 
 
-def onReceiveOSC(dat, rowIndex, message, bytes, peer):
+def onReceiveOSC(dat, rowIndex, message, bytes, *args):
+    """OSC receive callback. Accepts variable arguments for TouchDesigner compatibility."""
     address = ""
-    args: Sequence[object] = ()
+    osc_args: Sequence[object] = ()
     try:
         address = message.address or ""
-        args = tuple(message.vals)
+        osc_args = tuple(message.vals)
     except Exception:
         return
 
     if address.startswith("/eos/"):
-        _handle_palette_event(address, args)
+        _handle_palette_event(address, osc_args)
     else:
-        _handle_menu_event(address, args)
+        _handle_menu_event(address, osc_args)
 
     return
