@@ -1,9 +1,10 @@
-﻿# /project1/layers/menus/menu_engine � minimal & robust
+# /project1/layers/menus/menu_engine – minimal & robust
 import re
 
 OSCDAT = op('/project1/io/oscout1')
 STATE  = op('/project1')  # Storage: ACTIVE_MENU ? {None, 1..5}
 DRV    = op('/project1/io/driver_led')
+BLINK  = op('/project1/io/led_blink_manager')
 
 _MULTI_ADDR_SPLIT = re.compile(r'\s*(?:&&|\|\||\||[,;\n])\s*')
 
@@ -58,19 +59,19 @@ _SUBMENU_CONFIG = {
         {
             "key": _normalize_submenu_key("form"),
             "label": "submenu 4.1 form",
-            "blink": None,
+            "blink": "submenu1",
             "action": _macro_path_spec(1204),
         },
         {
             "key": _normalize_submenu_key("image"),
             "label": "submenu 4.2 image",
-            "blink": "slow",
+            "blink": "submenu2",
             "action": _macro_path_spec(1205),
         },
         {
             "key": _normalize_submenu_key("shutter"),
             "label": "submenu 4.3 shutter",
-            "blink": "fast",
+            "blink": "submenu3",
             "action": _macro_path_spec(1206),
         },
     ],
@@ -182,9 +183,42 @@ def _row_visible_for_submenu(tracker) -> bool:
     return current == active
 
 
+def _blink_module():
+    return getattr(BLINK, "module", None) if BLINK else None
+
+
 def _update_submenu_led_feedback(active_menu_idx: int):
-    # Blinken deaktiviert: bewusst keine Aktion
-    return
+    if 4 not in _SUBMENU_CONFIG:
+        return
+    mod = _blink_module()
+    if not mod:
+        return
+    target = "btn/4"
+    color = _menu_color(4)
+    base_state = "press" if int(active_menu_idx) == 4 else "idle"
+    try:
+        mod.update_base(target, base_state, color)
+    except Exception:
+        pass
+    if int(active_menu_idx) != 4:
+        try:
+            # Stop without restore - let apply_menu_leds set the correct state
+            mod.stop(target, restore=False)
+        except Exception:
+            pass
+        return
+    entry = _active_submenu_entry(4)
+    pattern = entry.get("blink") if entry else None
+    if pattern:
+        try:
+            mod.start(target, pattern, color=color, base_state=(base_state, color), priority=10)
+        except Exception:
+            pass
+    else:
+        try:
+            mod.stop(target, restore=True)
+        except Exception:
+            pass
 
 def _set_active(idx:int):
     idx = int(idx)
@@ -233,7 +267,7 @@ def _ensure_active():
 def _lookup(menu_idx:int, topic:str):
     """Look up normalized topic (no leading slash) in menu_X/map_osc."""
     T = op(f"/project1/layers/menus/menu_{int(menu_idx)}/map_osc")
-    if not T: 
+    if not T:
         return None, 1.0
     cols = { T[0,c].val.strip().lower(): c for c in range(T.numCols) }
     ci_topic = cols.get('topic'); ci_path = cols.get('path_out')
@@ -285,7 +319,7 @@ def _topic_color(menu_idx:int, topic:str):
 def _button_color(menu_idx:int, topic:str):
     color = _topic_color(menu_idx, topic)
     return color if color else _menu_color(menu_idx)
- 
+
 def _all_menu_button_topics():
     topics = set()
     for idx in range(1,6):
@@ -359,7 +393,7 @@ def apply_menu_leds(menu_idx:int):
 
     # Nur Buttons aus der Map im Idle anleuchten
     for r in range(1, T.numRows):
-        if not T[r,ci_topic]: 
+        if not T[r,ci_topic]:
             continue
         if ci_en is not None and T[r,ci_en] and T[r,ci_en].val.strip() != "1":
             continue
@@ -533,7 +567,7 @@ def handle_event(topic, value):
                 _send_osc(send_path, [payload_out])
         return True
 
-    # 3) Fader 14-bit gegl�ttet ('fader/x')
+    # 3) Fader 14-bit geglättet ('fader/x')
     if t.startswith('fader/'):
         parts = t.split('/')
         base_topic = '/'.join(parts[:2]) if len(parts) > 2 and parts[2] in ('msb', 'lsb') else t
