@@ -1,6 +1,10 @@
 topic	device	midi_channel	control_id	path_out	scale	enabled	led_color
 enc/1/delta	midicraft	1	6	/eos/wheel/level	1	1	
-__menu_color__						1	yellow
+enc/2/delta	midicraft	1	7	/eos/wheel/pan	1	1	
+enc/3/delta	midicraft	1	8	/eos/wheel/tilt	1	1	
+enc/4/delta	midicraft	1	9	/eos/wheel/zoom	1	1	
+enc/5/delta	midicraft	1	10	/eos/wheel/edge	1	1	
+__menu_color__					1	yellow
 btn/11	midicraft	1	21	/eos/key/stop	1	1	red
 btn/12	midicraft	1	22		1	1	yellow
 btn/13	midicraft	1	23		1	1	yellow
