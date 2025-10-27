@@ -104,24 +104,27 @@ def tick(base) -> None:
 def _send_next_index(palette_type: str) -> None:
     st = state.state
     if st.active[palette_type] is not None:
+        print(f"[palette] DEBUG {palette_type} skip: already active={st.active[palette_type]}")
         return
     queue = st.queues[palette_type]
     if not queue:
+        print(f"[palette] DEBUG {palette_type} skip: queue empty")
         return
 
     # Rate limiting: enforce minimum interval between requests
     now = time.perf_counter()
     time_since_last = now - st.sent_at[palette_type]
     if time_since_last < MIN_REQUEST_INTERVAL:
-        # Uncomment for verbose rate limiting debug:
-        # print(f"[palette] DEBUG {palette_type} rate limited (wait {MIN_REQUEST_INTERVAL - time_since_last:.3f}s)")
+        print(f"[palette] DEBUG {palette_type} rate limited (wait {MIN_REQUEST_INTERVAL - time_since_last:.3f}s)")
         return  # Too soon, wait for next tick
 
     osc = state.get_osc_out()
     if not osc:
+        print(f"[palette] ERROR {palette_type} OSC Out not found!")
         return
     palette_num = queue[0]
     # Use correct EOS OSC API: /eos/get/{type}/{num}/list/{index}/{count}
+    print(f"[palette] DEBUG {palette_type} sending OSC: /eos/get/{palette_type}/{palette_num}/list/0/1")
     osc.sendOSC(f"/eos/get/{palette_type}/{palette_num}/list/0/1", [])
     st.active[palette_type] = palette_num
     st.sent_at[palette_type] = now
