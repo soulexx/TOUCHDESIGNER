@@ -77,32 +77,33 @@ def on_osc_receive(address: str, args: Sequence[object], timestamp: float = 0.0)
     if match:
         palette_type = match.group("typ")
         palette_num = int(match.group("num"))
-        index = int(float(args[0])) if args else int(match.group("idx"))
+        list_index = int(float(args[0])) if args else int(match.group("idx"))
         uid = str(args[1]) if len(args) > 1 else ""
         label = _clean_label(args[2:])
-        print(f"[palette] DEBUG received list: {palette_type} #{palette_num} idx={index} uid={uid} label='{label}'")
+        print(f"[palette] DEBUG received list: {palette_type} #{palette_num} list_idx={list_index} uid={uid} label='{label}'")
+        # Use palette_num (not list_index) for row and ACK - that's what pump expects!
         _update_row(
-            palette_type, index, num=palette_num, uid=uid, label=label
+            palette_type, palette_num, num=palette_num, uid=uid, label=label
         )
-        pump.on_list_ack(base, palette_type, index)
+        pump.on_list_ack(base, palette_type, palette_num)
         return
 
     match = RE_CHANNELS.match(address)
     if match:
         palette_type = match.group("typ")
-        index = int(float(args[0])) if args else int(match.group("idx"))
+        palette_num = int(match.group("num"))
         channels = " ".join(str(item) for item in args[1:])
-        print(f"[palette] DEBUG received channels: {palette_type} #{index} channels='{channels}'")
-        _update_row(palette_type, index, channels=channels)
+        print(f"[palette] DEBUG received channels: {palette_type} #{palette_num} channels='{channels}'")
+        _update_row(palette_type, palette_num, channels=channels)
         return
 
     match = RE_BYTYPE.match(address)
     if match:
         palette_type = match.group("typ")
-        index = int(float(args[0])) if args else int(match.group("idx"))
+        palette_num = int(match.group("num"))
         bytype = " ".join(str(item) for item in args[1:])
-        print(f"[palette] DEBUG received bytype: {palette_type} #{index} bytype='{bytype}'")
-        _update_row(palette_type, index, bytype=bytype)
+        print(f"[palette] DEBUG received bytype: {palette_type} #{palette_num} bytype='{bytype}'")
+        _update_row(palette_type, palette_num, bytype=bytype)
         return
 
     # Log unrecognized EOS messages for debugging
