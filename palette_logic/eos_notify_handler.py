@@ -45,17 +45,25 @@ def _update_row(palette_type: str, index: int, **fields) -> None:
     rows = max(state.state.counts.get(palette_type, 0), index)
     table = state.ensure_table(palette_type, rows)
     if not table:
+        print(f"[palette] ERROR _update_row: table pal_{palette_type} not found!")
         return
     header = TABLE_HEADER
     # Row 0 = header, Row 1 = Palette #1, etc.
     row = index
-    table[row, header.index("index")] = str(index)
-    if state.state.counts.get(palette_type, 0) < index:
-        state.state.counts[palette_type] = index
-    for key, value in fields.items():
-        if value is None or key not in header:
-            continue
-        table[row, header.index(key)] = str(value)
+    print(f"[palette] DEBUG _update_row: {palette_type} row={row} (table has {table.numRows} rows) fields={list(fields.keys())}")
+    try:
+        table[row, header.index("index")] = str(index)
+        if state.state.counts.get(palette_type, 0) < index:
+            state.state.counts[palette_type] = index
+        for key, value in fields.items():
+            if value is None or key not in header:
+                continue
+            col_idx = header.index(key)
+            print(f"[palette] DEBUG   setting [{row},{col_idx}] {key}={value}")
+            table[row, col_idx] = str(value)
+        print(f"[palette] DEBUG _update_row: {palette_type} #{index} updated successfully")
+    except Exception as e:
+        print(f"[palette] ERROR _update_row: {palette_type} #{index} failed: {e}")
 
 
 def on_osc_receive(address: str, args: Sequence[object], timestamp: float = 0.0) -> None:
