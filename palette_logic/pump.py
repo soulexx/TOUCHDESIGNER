@@ -39,21 +39,27 @@ def _apply_count(palette_type: str, count: int) -> None:
     st.counts[palette_type] = count
     queue = st.queues[palette_type]
     queue.clear()
-    # EOS uses 1-based palette numbers (1, 2, 3, ..., count)
-    queue.extend(range(1, count + 1))
+    # EOS API uses 0-based indices for requests: /eos/get/{type}/index/0, index/1, ...
+    # EOS responds with actual palette numbers in the reply address
+    queue.extend(range(count))  # 0, 1, 2, ..., count-1
     st.active[palette_type] = None
     st.sent_at[palette_type] = 0.0
     st.attempts[palette_type] = 0
     state.ensure_table(palette_type, count)
-    print(f"[palette] DEBUG {palette_type} queue initialized: {count} palettes (1-{count})")
+    print(f"[palette] DEBUG {palette_type} queue initialized: {count} indices (0-{count-1})")
 
 
 def on_list_ack(base, palette_type: str, index: int) -> None:
+    """Acknowledge receipt of palette data for given index.
+
+    Args:
+        index: The 0-based index that was requested (NOT the palette number)
+    """
     state.attach_base(base)
     st = state.state
     active = st.active[palette_type]
     if active != index:
-        print(f"[palette] DEBUG {palette_type} ACK mismatch: expected {active}, got {index}")
+        print(f"[palette] DEBUG {palette_type} ACK mismatch: expected index {active}, got {index}")
         return
     queue = st.queues[palette_type]
     remaining = len(queue)
@@ -64,7 +70,7 @@ def on_list_ack(base, palette_type: str, index: int) -> None:
     st.active[palette_type] = None
     st.sent_at[palette_type] = 0.0
     st.attempts[palette_type] = 0
-    print(f"[palette] DEBUG {palette_type} palette #{index} ACK (queue: {remaining-1} remaining)")
+    print(f"[palette] DEBUG {palette_type} index {index} ACK (queue: {remaining-1} remaining)")
     _send_next_index(palette_type)
 
 
@@ -89,44 +95,44 @@ def tick(base) -> None:
                 queue.popleft()
             st.active[palette_type] = None
             st.attempts[palette_type] = 0
-            print(f"[palette] WARN giving up on {palette_type}:{active}")
+            print(f"[palette] WARN giving up on {palette_type} index {active}")
             _send_next_index(palette_type)
         else:
-            # Use correct EOS OSC API: /eos/get/{type}/{num}/list/{index}/{count}
-            osc.sendOSC(f"/eos/get/{palette_type}/{active}/list/0/1", [])
+            # Correct EOS OSC API: /eos/get/{type}/index/{index}
+            osc.sendOSC(f"/eos/get/{palette_type}/index/{active}", [])
             st.sent_at[palette_type] = now
             st.attempts[palette_type] += 1
             print(
-                f"[palette] resend {palette_type}:{active} attempt {st.attempts[palette_type]}"
+                f"[palette] resend {palette_type} index {active} attempt {st.attempts[palette_type]}"
             )
 
 
 def _send_next_index(palette_type: str) -> None:
     st = state.state
     if st.active[palette_type] is not None:
-        print(f"[palette] DEBUG {palette_type} skip: already active={st.active[palette_type]}")
         return
     queue = st.queues[palette_type]
     if not queue:
-        print(f"[palette] DEBUG {palette_type} skip: queue empty")
         return
 
     # Rate limiting: enforce minimum interval between requests
     now = time.perf_counter()
     time_since_last = now - st.sent_at[palette_type]
     if time_since_last < MIN_REQUEST_INTERVAL:
-        print(f"[palette] DEBUG {palette_type} rate limited (wait {MIN_REQUEST_INTERVAL - time_since_last:.3f}s)")
+        # Uncomment for verbose rate limiting debug:
+        # print(f"[palette] DEBUG {palette_type} rate limited (wait {MIN_REQUEST_INTERVAL - time_since_last:.3f}s)")
         return  # Too soon, wait for next tick
 
     osc = state.get_osc_out()
     if not osc:
         print(f"[palette] ERROR {palette_type} OSC Out not found!")
         return
-    palette_num = queue[0]
-    # Use correct EOS OSC API: /eos/get/{type}/{num}/list/{index}/{count}
-    print(f"[palette] DEBUG {palette_type} sending OSC: /eos/get/{palette_type}/{palette_num}/list/0/1")
-    osc.sendOSC(f"/eos/get/{palette_type}/{palette_num}/list/0/1", [])
-    st.active[palette_type] = palette_num
+    index = queue[0]
+    # Correct EOS OSC API: /eos/get/{type}/index/{index}
+    # EOS will respond with /eos/out/get/{type}/{palette_num}/list/... containing actual palette data
+    print(f"[palette] DEBUG {palette_type} sending OSC: /eos/get/{palette_type}/index/{index}")
+    osc.sendOSC(f"/eos/get/{palette_type}/index/{index}", [])
+    st.active[palette_type] = index
     st.sent_at[palette_type] = now
     st.attempts[palette_type] = 1
-    print(f"[palette] send {palette_type} palette #{palette_num}")
+    print(f"[palette] send {palette_type} index {index}")
