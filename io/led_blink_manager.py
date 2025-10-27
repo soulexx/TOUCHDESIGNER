@@ -131,10 +131,11 @@ def start(
         "target": key,
         "steps": steps,
         "index": 0,
-        "next_time": now,
+        "next_time": now,  # Force immediate execution
         "priority": priority,
         "color": entry_color,
         "base": base_state or _base_states.get(key),
+        "started_at": now,
     }
     _entries[key] = entry
     _apply_step(entry, now, first_step=True)

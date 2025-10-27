@@ -1,12 +1,12 @@
-# /project1/layers/menus/menu_engine � minimal & robust
+# /project1/layers/menus/menu_engine – minimal & robust
 import re
 
 OSCDAT = op('/project1/io/oscout1')
 STATE  = op('/project1')  # Storage: ACTIVE_MENU ? {None, 1..5}
 DRV    = op('/project1/io/driver_led')
+BLINK  = op('/project1/io/led_blink_manager')
 
 _MULTI_ADDR_SPLIT = re.compile(r'\s*(?:&&|\|\||\||[,;\n])\s*')
-_BLINK_WARNED = False
 
 def _iter_path_targets(path_spec):
     """Return normalized OSC addresses for a map entry (supports multi-send)."""
@@ -59,19 +59,19 @@ _SUBMENU_CONFIG = {
         {
             "key": _normalize_submenu_key("form"),
             "label": "submenu 4.1 form",
-            "blink": None,
+            "blink": "submenu1",
             "action": _macro_path_spec(1204),
         },
         {
             "key": _normalize_submenu_key("image"),
             "label": "submenu 4.2 image",
-            "blink": "slow",
+            "blink": "submenu2",
             "action": _macro_path_spec(1205),
         },
         {
             "key": _normalize_submenu_key("shutter"),
             "label": "submenu 4.3 shutter",
-            "blink": "fast",
+            "blink": "submenu3",
             "action": _macro_path_spec(1206),
         },
     ],
@@ -129,9 +129,6 @@ def _advance_submenu(menu_idx: int):
         print(f"[submenu] menu_{menu_idx} -> {label}")
     except Exception:
         pass
-    active_menu = _get_active()
-    if active_menu:
-        _update_submenu_led_feedback(active_menu)
 
 
 def _active_submenu_key(menu_idx: int) -> str:
@@ -144,6 +141,14 @@ def _submenu_action_spec(menu_idx: int):
     if not entry:
         return None
     return entry.get("action")
+
+
+def _menu_button_action(idx: int):
+    if idx in _SUBMENU_CONFIG:
+        sub_action = _submenu_action_spec(idx)
+        if sub_action:
+            return sub_action
+    return MENU_SELECT_ACTIONS.get(idx)
 
 
 def _submenu_tracker(menu_idx: int):
@@ -179,8 +184,7 @@ def _row_visible_for_submenu(tracker) -> bool:
 
 
 def _blink_module():
-    blink_op = op('/project1/io/led_blink_manager')
-    return getattr(blink_op, "module", None) if blink_op else None
+    return getattr(BLINK, "module", None) if BLINK else None
 
 
 def _update_submenu_led_feedback(active_menu_idx: int):
@@ -188,15 +192,7 @@ def _update_submenu_led_feedback(active_menu_idx: int):
         return
     mod = _blink_module()
     if not mod:
-        global _BLINK_WARNED
-        if not _BLINK_WARNED:
-            try:
-                print("[submenu blink] WARN: led_blink_manager missing")
-            except Exception:
-                pass
-            _BLINK_WARNED = True
         return
-    _BLINK_WARNED = False
     target = "btn/4"
     color = _menu_color(4)
     base_state = "press" if int(active_menu_idx) == 4 else "idle"
@@ -206,7 +202,8 @@ def _update_submenu_led_feedback(active_menu_idx: int):
         pass
     if int(active_menu_idx) != 4:
         try:
-            mod.stop(target)
+            # Stop without restore - let apply_menu_leds set the correct state
+            mod.stop(target, restore=False)
         except Exception:
             pass
         return
@@ -214,13 +211,12 @@ def _update_submenu_led_feedback(active_menu_idx: int):
     pattern = entry.get("blink") if entry else None
     if pattern:
         try:
-            mod.stop(target, restore=False)
             mod.start(target, pattern, color=color, base_state=(base_state, color), priority=10)
         except Exception:
             pass
     else:
         try:
-            mod.stop(target)
+            mod.stop(target, restore=True)
         except Exception:
             pass
 
@@ -228,7 +224,8 @@ def _set_active(idx:int):
     idx = int(idx)
     STATE.store('ACTIVE_MENU', idx)
     if idx in _SUBMENU_CONFIG:
-        _get_submenu_index(idx)
+        # Reset submenu to index 0 (first submenu)
+        _set_submenu_index(idx, 0)
     try:
         print('[menu active] menu_' + str(idx))
     except Exception:
@@ -270,7 +267,7 @@ def _ensure_active():
 def _lookup(menu_idx:int, topic:str):
     """Look up normalized topic (no leading slash) in menu_X/map_osc."""
     T = op(f"/project1/layers/menus/menu_{int(menu_idx)}/map_osc")
-    if not T: 
+    if not T:
         return None, 1.0
     cols = { T[0,c].val.strip().lower(): c for c in range(T.numCols) }
     ci_topic = cols.get('topic'); ci_path = cols.get('path_out')
@@ -322,7 +319,7 @@ def _topic_color(menu_idx:int, topic:str):
 def _button_color(menu_idx:int, topic:str):
     color = _topic_color(menu_idx, topic)
     return color if color else _menu_color(menu_idx)
- 
+
 def _all_menu_button_topics():
     topics = set()
     for idx in range(1,6):
@@ -396,7 +393,7 @@ def apply_menu_leds(menu_idx:int):
 
     # Nur Buttons aus der Map im Idle anleuchten
     for r in range(1, T.numRows):
-        if not T[r,ci_topic]: 
+        if not T[r,ci_topic]:
             continue
         if ci_en is not None and T[r,ci_en] and T[r,ci_en].val.strip() != "1":
             continue
@@ -412,6 +409,8 @@ def apply_menu_leds(menu_idx:int):
         color_i = _menu_color(i)
         state = "press" if i == int(menu_idx) else "idle"
         DRV.module.send_led(topic, state, color_i, do_send=True)
+
+    # Update submenu LED feedback LAST (so blink pattern takes priority)
     _update_submenu_led_feedback(menu_idx)
 
 def _send_osc(addr, payload):
@@ -450,9 +449,7 @@ def handle_event(topic, value):
                 elif idx == 4:
                     _advance_submenu(idx)
                     apply_menu_leds(idx)
-            action_spec = MENU_SELECT_ACTIONS.get(idx)
-            if action_spec is None and idx in _SUBMENU_CONFIG:
-                action_spec = _submenu_action_spec(idx)
+            action_spec = _menu_button_action(idx)
             if action_spec is not None:
                 _send_path_spec(action_spec, [analog_value])
             return True
@@ -570,7 +567,7 @@ def handle_event(topic, value):
                 _send_osc(send_path, [payload_out])
         return True
 
-    # 3) Fader 14-bit gegl�ttet ('fader/x')
+    # 3) Fader 14-bit geglättet ('fader/x')
     if t.startswith('fader/'):
         parts = t.split('/')
         base_topic = '/'.join(parts[:2]) if len(parts) > 2 and parts[2] in ('msb', 'lsb') else t
