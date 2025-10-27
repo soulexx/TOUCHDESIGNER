@@ -45,17 +45,25 @@ def _update_row(palette_type: str, index: int, **fields) -> None:
     rows = max(state.state.counts.get(palette_type, 0), index)
     table = state.ensure_table(palette_type, rows)
     if not table:
+        print(f"[palette] ERROR _update_row: table pal_{palette_type} not found!")
         return
     header = TABLE_HEADER
     # Row 0 = header, Row 1 = Palette #1, etc.
     row = index
-    table[row, header.index("index")] = str(index)
-    if state.state.counts.get(palette_type, 0) < index:
-        state.state.counts[palette_type] = index
-    for key, value in fields.items():
-        if value is None or key not in header:
-            continue
-        table[row, header.index(key)] = str(value)
+    print(f"[palette] DEBUG _update_row: {palette_type} row={row} (table has {table.numRows} rows) fields={list(fields.keys())}")
+    try:
+        table[row, header.index("index")] = str(index)
+        if state.state.counts.get(palette_type, 0) < index:
+            state.state.counts[palette_type] = index
+        for key, value in fields.items():
+            if value is None or key not in header:
+                continue
+            col_idx = header.index(key)
+            print(f"[palette] DEBUG   setting [{row},{col_idx}] {key}={value}")
+            table[row, col_idx] = str(value)
+        print(f"[palette] DEBUG _update_row: {palette_type} #{index} updated successfully")
+    except Exception as e:
+        print(f"[palette] ERROR _update_row: {palette_type} #{index} failed: {e}")
 
 
 def on_osc_receive(address: str, args: Sequence[object], timestamp: float = 0.0) -> None:
@@ -77,32 +85,33 @@ def on_osc_receive(address: str, args: Sequence[object], timestamp: float = 0.0)
     if match:
         palette_type = match.group("typ")
         palette_num = int(match.group("num"))
-        index = int(float(args[0])) if args else int(match.group("idx"))
+        list_index = int(float(args[0])) if args else int(match.group("idx"))
         uid = str(args[1]) if len(args) > 1 else ""
         label = _clean_label(args[2:])
-        print(f"[palette] DEBUG received list: {palette_type} #{palette_num} idx={index} uid={uid} label='{label}'")
+        print(f"[palette] DEBUG received list: {palette_type} #{palette_num} list_idx={list_index} uid={uid} label='{label}'")
+        # Use palette_num (not list_index) for row and ACK - that's what pump expects!
         _update_row(
-            palette_type, index, num=palette_num, uid=uid, label=label
+            palette_type, palette_num, num=palette_num, uid=uid, label=label
         )
-        pump.on_list_ack(base, palette_type, index)
+        pump.on_list_ack(base, palette_type, palette_num)
         return
 
     match = RE_CHANNELS.match(address)
     if match:
         palette_type = match.group("typ")
-        index = int(float(args[0])) if args else int(match.group("idx"))
+        palette_num = int(match.group("num"))
         channels = " ".join(str(item) for item in args[1:])
-        print(f"[palette] DEBUG received channels: {palette_type} #{index} channels='{channels}'")
-        _update_row(palette_type, index, channels=channels)
+        print(f"[palette] DEBUG received channels: {palette_type} #{palette_num} channels='{channels}'")
+        _update_row(palette_type, palette_num, channels=channels)
         return
 
     match = RE_BYTYPE.match(address)
     if match:
         palette_type = match.group("typ")
-        index = int(float(args[0])) if args else int(match.group("idx"))
+        palette_num = int(match.group("num"))
         bytype = " ".join(str(item) for item in args[1:])
-        print(f"[palette] DEBUG received bytype: {palette_type} #{index} bytype='{bytype}'")
-        _update_row(palette_type, index, bytype=bytype)
+        print(f"[palette] DEBUG received bytype: {palette_type} #{palette_num} bytype='{bytype}'")
+        _update_row(palette_type, palette_num, bytype=bytype)
         return
 
     # Log unrecognized EOS messages for debugging
