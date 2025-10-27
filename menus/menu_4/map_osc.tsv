@@ -23,6 +23,15 @@ btn/23	midicraft	1	28	/eos/key/beam_palette && /eos/key/1 && /eos/key/1 && /eos/
 btn/24	midicraft	1	29	/eos/key/beam_palette && /eos/key/1 && /eos/key/1 && /eos/key/0 && /eos/key/9 && /eos/key/enter	1	1	blue
 btn/25	midicraft	1	30	/eos/key/beam_palette && /eos/key/1 && /eos/key/1 && /eos/key/1 && /eos/key/0 && /eos/key/enter	1	1	blue
 __submenu__ shutter					
+enc/1/delta	midicraft	1	6	/eos/wheel/frame_angle_a	1	1	
+enc/2/delta	midicraft	1	7	/eos/wheel/frame_angle_b	1	1	
+enc/3/delta	midicraft	1	8	/eos/wheel/frame_angle_c	1	1	
+enc/4/delta	midicraft	1	9	/eos/wheel/frame_angle_d	1	1	
+fader/1	midicraft	1	16	/eos/param/frame_thrust_a	100	1	
+fader/2	midicraft	1	17	/eos/param/frame_thrust_b	100	1	
+fader/3	midicraft	1	18	/eos/param/frame_thrust_c	100	1	
+fader/4	midicraft	1	19	/eos/param/frame_thrust_d	100	1	
+fader/5	midicraft	1	20	/eos/param/frame_assembly	100	1	
 btn/11	midicraft	1	21	/eos/key/beam_palette && /eos/key/1 && /eos/key/2 && /eos/key/0 && /eos/key/1 && /eos/key/enter	1	1	blue
 btn/12	midicraft	1	22	/eos/key/beam_palette && /eos/key/1 && /eos/key/2 && /eos/key/0 && /eos/key/2 && /eos/key/enter	1	1	blue
 btn/13	midicraft	1	23	/eos/key/beam_palette && /eos/key/1 && /eos/key/2 && /eos/key/0 && /eos/key/3 && /eos/key/enter	1	1	blue
