@@ -379,6 +379,13 @@ def _wheel_stage_path(base_path, stage):
 
 _LEVEL_MODE_CACHE = {}  # topic -> last wheel mode (fine=1.0, coarse=0.0)
 
+# Stage-dependent encoder scaling for the EOS wheel. Fine gets extra precision,
+# coarse accelerates stronger. Tweak values as needed.
+_WHEEL_STAGE_SCALE = {
+    'fine': 0.25,
+    'coarse': 2.0,
+}
+
 def apply_menu_leds(menu_idx:int):
     """Nur Buttons bekommen LEDs; Encoder/EncPush/Fader NICHT."""
     T = op(f"/project1/layers/menus/menu_{int(menu_idx)}/map_osc")
@@ -552,6 +559,10 @@ def handle_event(topic, value):
                 scale_val = 1.0
 
             payload_value = float(delta_int) * scale_val
+            if send_path and send_path.startswith('/eos/wheel/'):
+                stage_scale = _WHEEL_STAGE_SCALE.get(stage)
+                if stage_scale is not None:
+                    payload_value *= stage_scale
             if send_path.startswith('/eos/wheel/'):
                 if send_path == '/eos/wheel/level':
                     desired_mode = 1.0 if stage == 'fine' else 0.0
