@@ -46,11 +46,34 @@ def _normalize_submenu_key(value: str) -> str:
     return cleaned.strip('_')
 
 
+def _macro_path_spec(number: int) -> str:
+    digits = list(str(abs(int(number))))
+    segments = ["/eos/key/macro"]
+    segments.extend(f"/eos/key/{d}" for d in digits)
+    segments.append("/eos/key/enter")
+    return " && ".join(segments)
+
+
 _SUBMENU_CONFIG = {
     4: [
-        {"key": _normalize_submenu_key("form"), "label": "submenu 4.1 form", "blink": "submenu1"},
-        {"key": _normalize_submenu_key("image"), "label": "submenu 4.2 image", "blink": "submenu2"},
-        {"key": _normalize_submenu_key("shutter"), "label": "submenu 4.3 shutter", "blink": "submenu3"},
+        {
+            "key": _normalize_submenu_key("form"),
+            "label": "submenu 4.1 form",
+            "blink": None,
+            "action": _macro_path_spec(1204),
+        },
+        {
+            "key": _normalize_submenu_key("image"),
+            "label": "submenu 4.2 image",
+            "blink": "slow",
+            "action": _macro_path_spec(1205),
+        },
+        {
+            "key": _normalize_submenu_key("shutter"),
+            "label": "submenu 4.3 shutter",
+            "blink": "fast",
+            "action": _macro_path_spec(1206),
+        },
     ],
 }
 
@@ -111,6 +134,13 @@ def _advance_submenu(menu_idx: int):
 def _active_submenu_key(menu_idx: int) -> str:
     entry = _active_submenu_entry(menu_idx)
     return entry.get("key", "") if entry else ""
+
+
+def _submenu_action_spec(menu_idx: int):
+    entry = _active_submenu_entry(menu_idx)
+    if not entry:
+        return None
+    return entry.get("action")
 
 
 def _submenu_tracker(menu_idx: int):
@@ -199,9 +229,9 @@ def _get_active():
 DEFAULT_MENU = 5
 MENU_SELECT_ACTIONS = {
     # menu button index -> OSC path spec (multi-send supported)
-    1: "/eos/key/macro && /eos/key/1 && /eos/key/2 && /eos/key/0 && /eos/key/1 && /eos/key/enter",
-    2: "/eos/key/macro && /eos/key/1 && /eos/key/2 && /eos/key/0 && /eos/key/2 && /eos/key/enter",
-    3: "/eos/key/macro && /eos/key/1 && /eos/key/2 && /eos/key/0 && /eos/key/3 && /eos/key/enter",
+    1: _macro_path_spec(1201),
+    2: _macro_path_spec(1202),
+    3: _macro_path_spec(1203),
 }
 
 _FADER_QUANT_DIGITS = 3
@@ -412,6 +442,8 @@ def handle_event(topic, value):
                     _advance_submenu(idx)
                     apply_menu_leds(idx)
             action_spec = MENU_SELECT_ACTIONS.get(idx)
+            if action_spec is None and idx in _SUBMENU_CONFIG:
+                action_spec = _submenu_action_spec(idx)
             if action_spec is not None:
                 _send_path_spec(action_spec, [analog_value])
             return True
