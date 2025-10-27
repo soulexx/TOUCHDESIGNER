@@ -59,7 +59,7 @@ def _update_row(palette_type: str, index: int, **fields) -> None:
 
 
 def on_osc_receive(address: str, args: Sequence[object], timestamp: float = 0.0) -> None:
-    base = td.op("/project1")
+    base = op("/project1")
     state.attach_base(base)
     state.mark_activity()
     if not address.startswith("/eos/out/get/"):
