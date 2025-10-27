@@ -186,7 +186,8 @@ def _set_active(idx:int):
     idx = int(idx)
     STATE.store('ACTIVE_MENU', idx)
     if idx in _SUBMENU_CONFIG:
-        _get_submenu_index(idx)
+        # Reset submenu to index 0 (first submenu)
+        _set_submenu_index(idx, 0)
     try:
         print('[menu active] menu_' + str(idx))
     except Exception:
