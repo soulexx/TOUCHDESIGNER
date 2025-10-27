@@ -164,7 +164,8 @@ def _update_submenu_led_feedback(active_menu_idx: int):
         pass
     if int(active_menu_idx) != 4:
         try:
-            mod.stop(target)
+            # Stop without restore - let apply_menu_leds set the correct state
+            mod.stop(target, restore=False)
         except Exception:
             pass
         return
@@ -177,7 +178,7 @@ def _update_submenu_led_feedback(active_menu_idx: int):
             pass
     else:
         try:
-            mod.stop(target)
+            mod.stop(target, restore=True)
         except Exception:
             pass
 
@@ -364,12 +365,14 @@ def apply_menu_leds(menu_idx:int):
         if color:
             DRV.module.send_led(topic, "idle", color, do_send=True)
 
+    # Update submenu LED feedback FIRST (stop blink if needed)
+    _update_submenu_led_feedback(menu_idx)
+
     for i in range(1,6):
         topic = f"btn/{i}"
         color_i = _menu_color(i)
         state = "press" if i == int(menu_idx) else "idle"
         DRV.module.send_led(topic, state, color_i, do_send=True)
-    _update_submenu_led_feedback(menu_idx)
 
 def _send_osc(addr, payload):
     try:
