@@ -1,10 +1,9 @@
-# /project1/layers/menus/menu_engine � minimal & robust
+﻿# /project1/layers/menus/menu_engine � minimal & robust
 import re
 
 OSCDAT = op('/project1/io/oscout1')
 STATE  = op('/project1')  # Storage: ACTIVE_MENU ? {None, 1..5}
 DRV    = op('/project1/io/driver_led')
-BLINK  = op('/project1/io/led_blink_manager')
 
 _MULTI_ADDR_SPLIT = re.compile(r'\s*(?:&&|\|\||\||[,;\n])\s*')
 
@@ -143,6 +142,14 @@ def _submenu_action_spec(menu_idx: int):
     return entry.get("action")
 
 
+def _menu_button_action(idx: int):
+    if idx in _SUBMENU_CONFIG:
+        sub_action = _submenu_action_spec(idx)
+        if sub_action:
+            return sub_action
+    return MENU_SELECT_ACTIONS.get(idx)
+
+
 def _submenu_tracker(menu_idx: int):
     return {
         "has_sections": False,
@@ -175,42 +182,9 @@ def _row_visible_for_submenu(tracker) -> bool:
     return current == active
 
 
-def _blink_module():
-    return getattr(BLINK, "module", None) if BLINK else None
-
-
 def _update_submenu_led_feedback(active_menu_idx: int):
-    if 4 not in _SUBMENU_CONFIG:
-        return
-    mod = _blink_module()
-    if not mod:
-        return
-    target = "btn/4"
-    color = _menu_color(4)
-    base_state = "press" if int(active_menu_idx) == 4 else "idle"
-    try:
-        mod.update_base(target, base_state, color)
-    except Exception:
-        pass
-    if int(active_menu_idx) != 4:
-        try:
-            # Stop without restore - let apply_menu_leds set the correct state
-            mod.stop(target, restore=False)
-        except Exception:
-            pass
-        return
-    entry = _active_submenu_entry(4)
-    pattern = entry.get("blink") if entry else None
-    if pattern:
-        try:
-            mod.start(target, pattern, color=color, base_state=(base_state, color), priority=10)
-        except Exception:
-            pass
-    else:
-        try:
-            mod.stop(target, restore=True)
-        except Exception:
-            pass
+    # Blinken deaktiviert: bewusst keine Aktion
+    return
 
 def _set_active(idx:int):
     idx = int(idx)
@@ -441,9 +415,7 @@ def handle_event(topic, value):
                 elif idx == 4:
                     _advance_submenu(idx)
                     apply_menu_leds(idx)
-            action_spec = MENU_SELECT_ACTIONS.get(idx)
-            if action_spec is None and idx in _SUBMENU_CONFIG:
-                action_spec = _submenu_action_spec(idx)
+            action_spec = _menu_button_action(idx)
             if action_spec is not None:
                 _send_path_spec(action_spec, [analog_value])
             return True
