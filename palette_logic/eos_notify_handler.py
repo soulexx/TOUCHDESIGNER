@@ -76,17 +76,15 @@ def on_osc_receive(address: str, args: Sequence[object], timestamp: float = 0.0)
     match = RE_LIST.match(address)
     if match:
         palette_type = match.group("typ")
-        palette_num = int(match.group("num"))  # Actual palette number from EOS
-        request_index = int(float(args[0])) if args else 0  # The 0-based index we requested
+        palette_num = int(match.group("num"))
+        index = int(float(args[0])) if args else int(match.group("idx"))
         uid = str(args[1]) if len(args) > 1 else ""
         label = _clean_label(args[2:])
-        print(f"[palette] DEBUG received list: {palette_type} palette#{palette_num} (request_index={request_index}) uid={uid} label='{label}'")
-        # Write to row palette_num (actual palette number from EOS)
-        # ACK with request_index (the 0-based index we sent)
+        print(f"[palette] DEBUG received list: {palette_type} #{palette_num} idx={index} uid={uid} label='{label}'")
         _update_row(
-            palette_type, palette_num, num=palette_num, uid=uid, label=label
+            palette_type, index, num=palette_num, uid=uid, label=label
         )
-        pump.on_list_ack(base, palette_type, request_index)
+        pump.on_list_ack(base, palette_type, index)
         return
 
     match = RE_CHANNELS.match(address)
@@ -101,10 +99,14 @@ def on_osc_receive(address: str, args: Sequence[object], timestamp: float = 0.0)
     match = RE_BYTYPE.match(address)
     if match:
         palette_type = match.group("typ")
-        index = int(float(args[0])) if args else int(match.group("idx"))
+        palette_num = int(match.group("num"))  # Actual palette number from EOS
+        request_index = int(float(args[0])) if args else 0  # The 0-based index we requested
         bytype = " ".join(str(item) for item in args[1:])
-        print(f"[palette] DEBUG received bytype: {palette_type} #{index} bytype='{bytype}'")
-        _update_row(palette_type, index, bytype=bytype)
+        print(f"[palette] DEBUG received bytype: {palette_type} palette#{palette_num} (request_index={request_index}) bytype='{bytype}'")
+        # Write to row palette_num
+        _update_row(palette_type, palette_num, bytype=bytype)
+        # IMPORTANT: ACK to pump so it continues with next palette!
+        pump.on_list_ack(base, palette_type, request_index)
         return
 
     # Log unrecognized EOS messages for debugging
