@@ -396,14 +396,14 @@ def apply_menu_leds(menu_idx:int):
         if color:
             DRV.module.send_led(topic, "idle", color, do_send=True)
 
-    # Update submenu LED feedback FIRST (stop blink if needed)
-    _update_submenu_led_feedback(menu_idx)
-
     for i in range(1,6):
         topic = f"btn/{i}"
         color_i = _menu_color(i)
         state = "press" if i == int(menu_idx) else "idle"
         DRV.module.send_led(topic, state, color_i, do_send=True)
+
+    # Update submenu LED feedback LAST (so blink pattern takes priority)
+    _update_submenu_led_feedback(menu_idx)
 
 def _send_osc(addr, payload):
     try:
