@@ -48,5 +48,6 @@ def request_all_counts(base) -> None:
         return
     st.last_count_request = time.perf_counter()
     for palette_type in ORDER:
+        # EOS API: /eos/get/{type}/count
         osc.sendOSC(f"/eos/get/{palette_type}/count", [])
         print(f"[palette] count request {palette_type}")
