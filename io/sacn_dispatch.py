@@ -6,6 +6,13 @@ from typing import Dict
 
 import s2l_unit as s2l
 
+# Import TouchDesigner's op() function
+try:
+    import __main__
+    op = __main__.op
+except:
+    op = None
+
 # TouchDesigner path to the manager DAT/COMP that handles decoded data.
 # Adjust to your actual dispatcher DAT location.
 MANAGER_DAT_PATH = "/project1/src/s2l_manager/dispatcher"

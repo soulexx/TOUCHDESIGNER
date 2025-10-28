@@ -1,131 +1,131 @@
-instance\tparameter\tvalue
-S2L_UNIT_1\tSubmaster\t1
-S2L_UNIT_1\tCuelist\t1
-S2L_UNIT_1\tStartCue\t0
-S2L_UNIT_1\tEndCue\t0
-S2L_UNIT_1\tMode\t0
-S2L_UNIT_1\tSensitivity\t50
-S2L_UNIT_1\tThreshold\t40
-S2L_UNIT_1\tLowCut_Hz\t120
-S2L_UNIT_1\tHighCut_Hz\t3500
-S2L_UNIT_1\tLag_ms\t150
-S2L_UNIT_1\tMinHold_s\t6
-S2L_UNIT_1\tFX_Select\t1
-S2L_UNIT_1\tFX_Auto\t0
-S2L_UNIT_2\tSubmaster\t1
-S2L_UNIT_2\tCuelist\t1
-S2L_UNIT_2\tStartCue\t0
-S2L_UNIT_2\tEndCue\t0
-S2L_UNIT_2\tMode\t0
-S2L_UNIT_2\tSensitivity\t50
-S2L_UNIT_2\tThreshold\t40
-S2L_UNIT_2\tLowCut_Hz\t120
-S2L_UNIT_2\tHighCut_Hz\t3500
-S2L_UNIT_2\tLag_ms\t150
-S2L_UNIT_2\tMinHold_s\t6
-S2L_UNIT_2\tFX_Select\t1
-S2L_UNIT_2\tFX_Auto\t0
-S2L_UNIT_3\tSubmaster\t1
-S2L_UNIT_3\tCuelist\t1
-S2L_UNIT_3\tStartCue\t0
-S2L_UNIT_3\tEndCue\t0
-S2L_UNIT_3\tMode\t0
-S2L_UNIT_3\tSensitivity\t50
-S2L_UNIT_3\tThreshold\t40
-S2L_UNIT_3\tLowCut_Hz\t120
-S2L_UNIT_3\tHighCut_Hz\t3500
-S2L_UNIT_3\tLag_ms\t150
-S2L_UNIT_3\tMinHold_s\t6
-S2L_UNIT_3\tFX_Select\t1
-S2L_UNIT_3\tFX_Auto\t0
-S2L_UNIT_4\tSubmaster\t1
-S2L_UNIT_4\tCuelist\t1
-S2L_UNIT_4\tStartCue\t0
-S2L_UNIT_4\tEndCue\t0
-S2L_UNIT_4\tMode\t0
-S2L_UNIT_4\tSensitivity\t50
-S2L_UNIT_4\tThreshold\t40
-S2L_UNIT_4\tLowCut_Hz\t120
-S2L_UNIT_4\tHighCut_Hz\t3500
-S2L_UNIT_4\tLag_ms\t150
-S2L_UNIT_4\tMinHold_s\t6
-S2L_UNIT_4\tFX_Select\t1
-S2L_UNIT_4\tFX_Auto\t0
-S2L_UNIT_5\tSubmaster\t1
-S2L_UNIT_5\tCuelist\t1
-S2L_UNIT_5\tStartCue\t0
-S2L_UNIT_5\tEndCue\t0
-S2L_UNIT_5\tMode\t0
-S2L_UNIT_5\tSensitivity\t50
-S2L_UNIT_5\tThreshold\t40
-S2L_UNIT_5\tLowCut_Hz\t120
-S2L_UNIT_5\tHighCut_Hz\t3500
-S2L_UNIT_5\tLag_ms\t150
-S2L_UNIT_5\tMinHold_s\t6
-S2L_UNIT_5\tFX_Select\t1
-S2L_UNIT_5\tFX_Auto\t0
-S2L_UNIT_6\tSubmaster\t1
-S2L_UNIT_6\tCuelist\t1
-S2L_UNIT_6\tStartCue\t0
-S2L_UNIT_6\tEndCue\t0
-S2L_UNIT_6\tMode\t0
-S2L_UNIT_6\tSensitivity\t50
-S2L_UNIT_6\tThreshold\t40
-S2L_UNIT_6\tLowCut_Hz\t120
-S2L_UNIT_6\tHighCut_Hz\t3500
-S2L_UNIT_6\tLag_ms\t150
-S2L_UNIT_6\tMinHold_s\t6
-S2L_UNIT_6\tFX_Select\t1
-S2L_UNIT_6\tFX_Auto\t0
-S2L_UNIT_7\tSubmaster\t1
-S2L_UNIT_7\tCuelist\t1
-S2L_UNIT_7\tStartCue\t0
-S2L_UNIT_7\tEndCue\t0
-S2L_UNIT_7\tMode\t0
-S2L_UNIT_7\tSensitivity\t50
-S2L_UNIT_7\tThreshold\t40
-S2L_UNIT_7\tLowCut_Hz\t120
-S2L_UNIT_7\tHighCut_Hz\t3500
-S2L_UNIT_7\tLag_ms\t150
-S2L_UNIT_7\tMinHold_s\t6
-S2L_UNIT_7\tFX_Select\t1
-S2L_UNIT_7\tFX_Auto\t0
-S2L_UNIT_8\tSubmaster\t1
-S2L_UNIT_8\tCuelist\t1
-S2L_UNIT_8\tStartCue\t0
-S2L_UNIT_8\tEndCue\t0
-S2L_UNIT_8\tMode\t0
-S2L_UNIT_8\tSensitivity\t50
-S2L_UNIT_8\tThreshold\t40
-S2L_UNIT_8\tLowCut_Hz\t120
-S2L_UNIT_8\tHighCut_Hz\t3500
-S2L_UNIT_8\tLag_ms\t150
-S2L_UNIT_8\tMinHold_s\t6
-S2L_UNIT_8\tFX_Select\t1
-S2L_UNIT_8\tFX_Auto\t0
-S2L_UNIT_9\tSubmaster\t1
-S2L_UNIT_9\tCuelist\t1
-S2L_UNIT_9\tStartCue\t0
-S2L_UNIT_9\tEndCue\t0
-S2L_UNIT_9\tMode\t0
-S2L_UNIT_9\tSensitivity\t50
-S2L_UNIT_9\tThreshold\t40
-S2L_UNIT_9\tLowCut_Hz\t120
-S2L_UNIT_9\tHighCut_Hz\t3500
-S2L_UNIT_9\tLag_ms\t150
-S2L_UNIT_9\tMinHold_s\t6
-S2L_UNIT_9\tFX_Select\t1
-S2L_UNIT_9\tFX_Auto\t0
-S2L_UNIT_10\tSubmaster\t1
-S2L_UNIT_10\tCuelist\t1
-S2L_UNIT_10\tStartCue\t0
-S2L_UNIT_10\tEndCue\t0
-S2L_UNIT_10\tMode\t0
-S2L_UNIT_10\tSensitivity\t50
-S2L_UNIT_10\tThreshold\t40
-S2L_UNIT_10\tLowCut_Hz\t120
-S2L_UNIT_10\tHighCut_Hz\t3500
-S2L_UNIT_10\tLag_ms\t150
-S2L_UNIT_10\tMinHold_s\t6
-S2L_UNIT_10\tFX_Select\t1
-S2L_UNIT_10\tFX_Auto\t0
+instance	parameter	value
+S2L_UNIT_1	Sensitivity	0
+S2L_UNIT_1	Threshold	0
+S2L_UNIT_1	Submaster	0
+S2L_UNIT_1	Cuelist	0
+S2L_UNIT_1	StartCue	0
+S2L_UNIT_1	EndCue	0
+S2L_UNIT_1	Mode	256
+S2L_UNIT_1	LowCut_Hz	149
+S2L_UNIT_1	HighCut_Hz	0
+S2L_UNIT_1	Lag_ms	0
+S2L_UNIT_1	MinHold_s	0
+S2L_UNIT_1	FX_Select	0
+S2L_UNIT_1	FX_Auto	0
+S2L_UNIT_2	Submaster	0
+S2L_UNIT_2	Cuelist	0
+S2L_UNIT_2	StartCue	0
+S2L_UNIT_2	EndCue	0
+S2L_UNIT_2	Mode	0
+S2L_UNIT_2	Sensitivity	0
+S2L_UNIT_2	Threshold	0
+S2L_UNIT_2	LowCut_Hz	0
+S2L_UNIT_2	HighCut_Hz	0
+S2L_UNIT_2	Lag_ms	0
+S2L_UNIT_2	MinHold_s	0
+S2L_UNIT_2	FX_Select	0
+S2L_UNIT_2	FX_Auto	0
+S2L_UNIT_3	Submaster	0
+S2L_UNIT_3	Cuelist	0
+S2L_UNIT_3	StartCue	0
+S2L_UNIT_3	EndCue	0
+S2L_UNIT_3	Mode	0
+S2L_UNIT_3	Sensitivity	0
+S2L_UNIT_3	Threshold	0
+S2L_UNIT_3	LowCut_Hz	0
+S2L_UNIT_3	HighCut_Hz	0
+S2L_UNIT_3	Lag_ms	0
+S2L_UNIT_3	MinHold_s	0
+S2L_UNIT_3	FX_Select	0
+S2L_UNIT_3	FX_Auto	0
+S2L_UNIT_4	Submaster	0
+S2L_UNIT_4	Cuelist	0
+S2L_UNIT_4	StartCue	0
+S2L_UNIT_4	EndCue	0
+S2L_UNIT_4	Mode	0
+S2L_UNIT_4	Sensitivity	0
+S2L_UNIT_4	Threshold	0
+S2L_UNIT_4	LowCut_Hz	0
+S2L_UNIT_4	HighCut_Hz	0
+S2L_UNIT_4	Lag_ms	0
+S2L_UNIT_4	MinHold_s	0
+S2L_UNIT_4	FX_Select	0
+S2L_UNIT_4	FX_Auto	0
+S2L_UNIT_5	Submaster	0
+S2L_UNIT_5	Cuelist	0
+S2L_UNIT_5	StartCue	0
+S2L_UNIT_5	EndCue	0
+S2L_UNIT_5	Mode	0
+S2L_UNIT_5	Sensitivity	0
+S2L_UNIT_5	Threshold	0
+S2L_UNIT_5	LowCut_Hz	0
+S2L_UNIT_5	HighCut_Hz	0
+S2L_UNIT_5	Lag_ms	0
+S2L_UNIT_5	MinHold_s	0
+S2L_UNIT_5	FX_Select	0
+S2L_UNIT_5	FX_Auto	0
+S2L_UNIT_6	Submaster	0
+S2L_UNIT_6	Cuelist	0
+S2L_UNIT_6	StartCue	0
+S2L_UNIT_6	EndCue	0
+S2L_UNIT_6	Mode	0
+S2L_UNIT_6	Sensitivity	0
+S2L_UNIT_6	Threshold	0
+S2L_UNIT_6	LowCut_Hz	0
+S2L_UNIT_6	HighCut_Hz	0
+S2L_UNIT_6	Lag_ms	0
+S2L_UNIT_6	MinHold_s	0
+S2L_UNIT_6	FX_Select	0
+S2L_UNIT_6	FX_Auto	0
+S2L_UNIT_7	Submaster	0
+S2L_UNIT_7	Cuelist	0
+S2L_UNIT_7	StartCue	0
+S2L_UNIT_7	EndCue	0
+S2L_UNIT_7	Mode	0
+S2L_UNIT_7	Sensitivity	0
+S2L_UNIT_7	Threshold	0
+S2L_UNIT_7	LowCut_Hz	0
+S2L_UNIT_7	HighCut_Hz	0
+S2L_UNIT_7	Lag_ms	0
+S2L_UNIT_7	MinHold_s	0
+S2L_UNIT_7	FX_Select	0
+S2L_UNIT_7	FX_Auto	0
+S2L_UNIT_8	Submaster	0
+S2L_UNIT_8	Cuelist	0
+S2L_UNIT_8	StartCue	0
+S2L_UNIT_8	EndCue	0
+S2L_UNIT_8	Mode	0
+S2L_UNIT_8	Sensitivity	0
+S2L_UNIT_8	Threshold	0
+S2L_UNIT_8	LowCut_Hz	0
+S2L_UNIT_8	HighCut_Hz	0
+S2L_UNIT_8	Lag_ms	0
+S2L_UNIT_8	MinHold_s	0
+S2L_UNIT_8	FX_Select	0
+S2L_UNIT_8	FX_Auto	0
+S2L_UNIT_9	Submaster	0
+S2L_UNIT_9	Cuelist	0
+S2L_UNIT_9	StartCue	0
+S2L_UNIT_9	EndCue	0
+S2L_UNIT_9	Mode	0
+S2L_UNIT_9	Sensitivity	0
+S2L_UNIT_9	Threshold	0
+S2L_UNIT_9	LowCut_Hz	0
+S2L_UNIT_9	HighCut_Hz	0
+S2L_UNIT_9	Lag_ms	0
+S2L_UNIT_9	MinHold_s	0
+S2L_UNIT_9	FX_Select	0
+S2L_UNIT_9	FX_Auto	0
+S2L_UNIT_10	Submaster	0
+S2L_UNIT_10	Cuelist	0
+S2L_UNIT_10	StartCue	0
+S2L_UNIT_10	EndCue	0
+S2L_UNIT_10	Mode	0
+S2L_UNIT_10	Sensitivity	0
+S2L_UNIT_10	Threshold	0
+S2L_UNIT_10	LowCut_Hz	0
+S2L_UNIT_10	HighCut_Hz	0
+S2L_UNIT_10	Lag_ms	0
+S2L_UNIT_10	MinHold_s	0
+S2L_UNIT_10	FX_Select	0
+S2L_UNIT_10	FX_Auto	0
