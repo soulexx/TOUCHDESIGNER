@@ -107,6 +107,28 @@ def _set_submenu_index(menu_idx: int, idx: int):
     STATE.store(_submenu_state_key(menu_idx), idx)
 
 
+def _get_gobo_slot(encoder_topic: str) -> int:
+    """Get current gobo slot (1-20) for an encoder."""
+    key = f"GOBO_SLOT_{encoder_topic}"
+    raw = STATE.fetch(key, 1)
+    try:
+        slot = int(raw)
+    except Exception:
+        slot = 1
+    slot = max(1, min(20, slot))
+    if raw != slot:
+        STATE.store(key, slot)
+    return slot
+
+
+def _set_gobo_slot(encoder_topic: str, slot: int):
+    """Set current gobo slot (1-20) for an encoder."""
+    slot = int(slot)
+    slot = ((slot - 1) % 20) + 1  # Wrap 1-20
+    key = f"GOBO_SLOT_{encoder_topic}"
+    STATE.store(key, slot)
+
+
 def _active_submenu_entry(menu_idx: int):
     cfg = _SUBMENU_CONFIG.get(int(menu_idx))
     if not cfg:
@@ -534,6 +556,26 @@ def handle_event(topic, value):
             look = t + '/delta'     # 'enc/1/delta'
             path, scale = _lookup(act, look)
             base_path = (path or '').strip() if path else ''
+
+            # Special handling for gobo_select (discrete slot selection)
+            if base_path and 'gobo_select' in base_path:
+                current_slot = _get_gobo_slot(t)
+                new_slot = current_slot + delta_int
+                new_slot = ((new_slot - 1) % 20) + 1  # Wrap 1-20
+                _set_gobo_slot(t, new_slot)
+
+                # Determine OSC parameter name from base_path
+                if 'gobo_select_2' in base_path:
+                    param_name = 'gobo_select_2'
+                else:
+                    param_name = 'gobo_select'
+
+                _send_osc(f'/eos/chan/selected/param/{param_name}', [new_slot])
+                try:
+                    print(f"[{param_name}] slot {current_slot} -> {new_slot}")
+                except Exception:
+                    pass
+                continue
 
             if scale is not None:
                 try:

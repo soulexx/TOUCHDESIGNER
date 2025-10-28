@@ -6,8 +6,18 @@ from typing import Dict
 
 import s2l_unit as s2l
 
+# Import TouchDesigner's op() function
+try:
+    import __main__
+    op = __main__.op
+except:
+    op = None
+
 # single-line log format to keep the textport tidy
 _LOG_PREFIX = "[s2l_manager]"
+
+# Absolute path to the values table
+VALUES_TABLE_PATH = "/project1/src/s2l_manager/values"
 
 print(f"{_LOG_PREFIX} dispatcher module reloaded")
 
@@ -18,7 +28,7 @@ _table_row_cache: Dict[tuple, int] = {}
 
 
 def _ensure_table():
-    table = op("values")  # type: ignore[name-defined]
+    table = op(VALUES_TABLE_PATH)  # type: ignore[name-defined]
     if table and table.numRows == 0:
         table.appendRow(["instance", "parameter", "value"])
     return table
