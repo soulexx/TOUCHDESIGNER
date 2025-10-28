@@ -1,4 +1,11 @@
-"""Central DMX parameter map for S2L_UNIT."""
+"""Central DMX parameter map for S2L_UNIT - NEW 14-channel structure.
+
+This is the corrected patch definition:
+- 14 DMX channels per unit (reduced from 19)
+- Clearer structure: 8 channels for 16-bit selection, 6 channels for 8-bit values/modes
+- Better audio envelope: Attack/Hold/Release instead of scattered parameters
+- Band selection via DMX ranges
+"""
 
 from __future__ import annotations
 
@@ -6,25 +13,29 @@ from typing import Iterable, Tuple
 
 from .models import ParameterDefinition
 
-DMX_SLOTS_PER_INSTANCE = 19
+DMX_SLOTS_PER_INSTANCE = 14  # Reduced from 19
 
-# Slots follow the sACN payload order: playback, audio, FX.
+# NEW STRUCTURE:
+# DMX 1-8:  16-bit selection parameters (High/Low byte pairs)
+# DMX 9-14: 8-bit values/modes
+
 _PARAMETERS: tuple[ParameterDefinition, ...] = (
+    # ========== 16-bit Selection Parameters (Channels 1-8) ==========
     ParameterDefinition(
         name="Submaster",
         dmx_slot_start=1,
         dmx_slot_count=2,
-        value_range=(1, 999),
-        home_value=1,
-        description="16-bit target submaster (coarse slot first, fine second)",
+        value_range=(0, 999),
+        home_value=0,
+        description="16-bit submaster selection (which submaster to use, NOT level!)",
     ),
     ParameterDefinition(
         name="Cuelist",
         dmx_slot_start=3,
         dmx_slot_count=2,
-        value_range=(1, 999),
-        home_value=1,
-        description="16-bit cuelist identifier",
+        value_range=(0, 999),
+        home_value=0,
+        description="16-bit cuelist selection (which list to use)",
     ),
     ParameterDefinition(
         name="StartCue",
@@ -32,7 +43,7 @@ _PARAMETERS: tuple[ParameterDefinition, ...] = (
         dmx_slot_count=2,
         value_range=(0, 999),
         home_value=0,
-        description="16-bit first cue in playback range",
+        description="16-bit start cue number in selected cuelist",
     ),
     ParameterDefinition(
         name="EndCue",
@@ -40,79 +51,57 @@ _PARAMETERS: tuple[ParameterDefinition, ...] = (
         dmx_slot_count=2,
         value_range=(0, 999),
         home_value=0,
-        description="16-bit last cue in playback range",
+        description="16-bit end cue number in selected cuelist",
     ),
-    ParameterDefinition(
-        name="Mode",
-        dmx_slot_start=9,
-        dmx_slot_count=2,
-        value_range=(0, 1256),
-        home_value=0,
-        description="16-bit playback mode (0-5 auto, 1001+ bars)",
-    ),
-    ParameterDefinition(
-        name="Sensitivity",
-        dmx_slot_start=11,
-        dmx_slot_count=1,
-        value_range=(0, 100),
-        home_value=50,
-        description="Audio sensitivity 0-100",
-    ),
+
+    # ========== 8-bit Value Parameters (Channels 9-14) ==========
     ParameterDefinition(
         name="Threshold",
+        dmx_slot_start=9,
+        dmx_slot_count=1,
+        value_range=(0, 255),
+        home_value=128,
+        description="Audio trigger threshold (0=most sensitive, 255=least sensitive)",
+    ),
+    ParameterDefinition(
+        name="Attack",
+        dmx_slot_start=10,
+        dmx_slot_count=1,
+        value_range=(0, 255),
+        home_value=64,
+        description="Attack time (0=fast attack, 255=slow attack)",
+    ),
+    ParameterDefinition(
+        name="Hold",
+        dmx_slot_start=11,
+        dmx_slot_count=1,
+        value_range=(0, 255),
+        home_value=128,
+        description="Hold time (how long peak is held)",
+    ),
+    ParameterDefinition(
+        name="Release",
         dmx_slot_start=12,
         dmx_slot_count=1,
-        value_range=(0, 100),
-        home_value=40,
-        description="Trigger threshold 0-100",
+        value_range=(0, 255),
+        home_value=128,
+        description="Release time (0=fast release, 255=slow release)",
     ),
     ParameterDefinition(
-        name="LowCut_Hz",
+        name="Band",
         dmx_slot_start=13,
-        dmx_slot_count=1,
-        value_range=(20, 300),
-        home_value=120,
-        description="Audio low-cut in Hz",
-    ),
-    ParameterDefinition(
-        name="HighCut_Hz",
-        dmx_slot_start=14,
-        dmx_slot_count=1,
-        value_range=(2000, 8000),
-        home_value=3500,
-        description="Audio high-cut in Hz",
-    ),
-    ParameterDefinition(
-        name="Lag_ms",
-        dmx_slot_start=15,
-        dmx_slot_count=1,
-        value_range=(0, 500),
-        home_value=150,
-        description="Smoothing / holdback in milliseconds",
-    ),
-    ParameterDefinition(
-        name="MinHold_s",
-        dmx_slot_start=16,
-        dmx_slot_count=1,
-        value_range=(0, 8),
-        home_value=6,
-        description="Minimum hold time in seconds",
-    ),
-    ParameterDefinition(
-        name="FX_Select",
-        dmx_slot_start=17,
-        dmx_slot_count=2,
-        value_range=(1, 65535),
-        home_value=1,
-        description="16-bit FX preset identifier",
-    ),
-    ParameterDefinition(
-        name="FX_Auto",
-        dmx_slot_start=19,
         dmx_slot_count=1,
         value_range=(0, 255),
         home_value=0,
-        description="Auto/beat behaviour (0=off,1=beat,2-255=auto)",
+        description="Analysis band/mode: 0-41=low, 42-84=mid, 85-127=high, 128-169=smsd, 170-212=fmsd, 213-255=spectralCentroid",
+    ),
+    ParameterDefinition(
+        name="FX_Polarity",
+        dmx_slot_start=14,
+        dmx_slot_count=1,
+        value_range=(0, 255),
+        home_value=0,
+        description="FX polarity/mode: 0-127=normal, 128-255=inverted",
     ),
 )
 
@@ -143,3 +132,40 @@ def dmx_span_for(name: str) -> Tuple[int, int]:
     start = param.dmx_slot_start
     end = start + param.dmx_slot_count - 1
     return start, end
+
+
+def decode_band_mode(raw_value: int) -> str:
+    """Decode the Band parameter into a human-readable mode string.
+
+    Args:
+        raw_value: DMX value 0-255
+
+    Returns:
+        One of: "low", "mid", "high", "smsd", "fmsd", "spectralCentroid"
+    """
+    if 0 <= raw_value <= 41:
+        return "low"
+    elif 42 <= raw_value <= 84:
+        return "mid"
+    elif 85 <= raw_value <= 127:
+        return "high"
+    elif 128 <= raw_value <= 169:
+        return "smsd"
+    elif 170 <= raw_value <= 212:
+        return "fmsd"
+    elif 213 <= raw_value <= 255:
+        return "spectralCentroid"
+    else:
+        return "unknown"
+
+
+def decode_fx_polarity(raw_value: int) -> str:
+    """Decode the FX_Polarity parameter into a human-readable string.
+
+    Args:
+        raw_value: DMX value 0-255
+
+    Returns:
+        One of: "normal", "inverted"
+    """
+    return "normal" if raw_value <= 127 else "inverted"

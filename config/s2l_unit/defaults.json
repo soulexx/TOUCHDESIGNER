@@ -1,25 +1,20 @@
 {
   "metadata": {
-    "dmx_slots_per_instance": 19,
-    "osc_path": "/eos/newcmd"
-  },
-  "audio": {
-    "sensitivity": 50,
-    "threshold": 40,
-    "lowcut_hz": 120,
-    "highcut_hz": 3500,
-    "lag_ms": 150,
-    "min_hold_s": 6
+    "dmx_slots_per_instance": 14,
+    "osc_path": "/s2l"
   },
   "playback": {
-    "submaster": 1,
-    "cuelist": 1,
+    "submaster": 0,
+    "cuelist": 0,
     "start_cue": 0,
-    "end_cue": 0,
-    "mode": 0
+    "end_cue": 0
   },
-  "fx": {
-    "select": 1,
-    "auto": 0
+  "audio": {
+    "threshold": 128,
+    "attack": 64,
+    "hold": 128,
+    "release": 128,
+    "band": 0,
+    "fx_polarity": 0
   }
 }
