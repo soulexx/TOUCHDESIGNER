@@ -2,8 +2,11 @@
 Execute script for audio-to-Eos mapping.
 Place this on an Execute DAT and set it to run on Frame Start.
 
-This script is called every frame and processes audio analysis values
-into Eos submaster commands based on S2L parameters.
+This script is called every frame and:
+1. Updates DMX values from Eos to values table
+2. Rebuilds audio_params_table from values
+3. Processes audio analysis with S2L parameters
+4. Sends OSC to Eos submasters
 """
 
 import sys
@@ -20,11 +23,27 @@ except:
     except:
         op = None
 
-# Reload module on every execute for development
-if 'audio_eos_mapper' in sys.modules:
-    importlib.reload(sys.modules['audio_eos_mapper'])
+# Setup paths
+if 'C:/_DEV/TOUCHDESIGNER/io' not in sys.path:
+    sys.path.insert(0, 'C:/_DEV/TOUCHDESIGNER/io')
+if 'C:/_DEV/TOUCHDESIGNER/src/s2l_unit' not in sys.path:
+    sys.path.insert(0, 'C:/_DEV/TOUCHDESIGNER/src/s2l_unit')
+if 'C:/_DEV/TOUCHDESIGNER/src/s2l_manager' not in sys.path:
+    sys.path.insert(0, 'C:/_DEV/TOUCHDESIGNER/src/s2l_manager')
 
+# Import modules
 import audio_eos_mapper as mapper
+import s2l_unit as s2l
+
+# DMX Update Configuration
+DMX_CHOP_PATH = "/project1/io/EOS_Universe_016"
+DISPATCHER_DAT_PATH = "/project1/src/s2l_manager/dispatcher"
+DMX_UNIVERSE = 16
+
+# Cache for DMX processing
+_dmx_instances_cache = None
+_dmx_defaults_cache = None
+_last_dmx_update_frame = -100  # Update DMX every N frames
 
 # Configuration: Map audio channels to Eos submaster numbers
 # Adjust these submaster numbers to match your Eos show
@@ -43,6 +62,70 @@ SUBMASTER_MAPPING = {
 
 # Enable/disable mapping
 ENABLE_MAPPING = True
+# How often to update DMX (every N frames, 1=every frame, 10=every 10 frames)
+DMX_UPDATE_INTERVAL = 5
+
+
+def _update_dmx_values(current_frame):
+    """Update DMX values from Eos to values table."""
+    global _dmx_instances_cache, _dmx_defaults_cache, _last_dmx_update_frame, op
+
+    # Only update every N frames to reduce CPU load
+    if current_frame - _last_dmx_update_frame < DMX_UPDATE_INTERVAL:
+        return
+
+    _last_dmx_update_frame = current_frame
+
+    try:
+        # Get DMX CHOP
+        dmx_chop = op(DMX_CHOP_PATH)
+        if not dmx_chop or dmx_chop.numSamples == 0:
+            return
+
+        # Convert CHOP to bytes
+        data = []
+        for channel in dmx_chop.chans():
+            raw = channel[0]
+            value = max(0.0, min(255.0, raw))
+            data.append(int(round(value)))
+
+        # Pad to 512 bytes
+        if len(data) > 512:
+            data = data[-512:]
+        elif len(data) < 512:
+            data.extend([0] * (512 - len(data)))
+
+        payload = bytes(data)
+
+        # Get instances (cached)
+        if _dmx_instances_cache is None:
+            all_instances = s2l.load_instances()
+            _dmx_instances_cache = [
+                inst for inst in all_instances
+                if inst.enabled and inst.universe == DMX_UNIVERSE
+            ]
+
+        if not _dmx_instances_cache:
+            return
+
+        # Decode DMX
+        values = s2l.decode_universe(payload, _dmx_instances_cache, scaling=False)
+
+        # Get defaults (cached)
+        if _dmx_defaults_cache is None:
+            _dmx_defaults_cache = s2l.load_defaults()
+
+        # Get dispatcher and update
+        dispatcher_dat = op(DISPATCHER_DAT_PATH)
+        if dispatcher_dat:
+            update_func = getattr(dispatcher_dat.module, "update_from_dmx", None)
+            if callable(update_func):
+                update_func(DMX_UNIVERSE, values, _dmx_defaults_cache)
+
+    except Exception as e:
+        # Log errors occasionally, not every frame
+        if current_frame % 300 == 0:  # Every 5 seconds at 60fps
+            print(f"[audio_eos_exec] DMX update error: {e}")
 
 
 def onFrameStart(frame):
@@ -57,11 +140,14 @@ def onFrameStart(frame):
         except:
             return
 
+    # STEP 1: Update DMX values from Eos every N frames
+    _update_dmx_values(frame)
+
     if not ENABLE_MAPPING:
         return
 
     try:
-        # Get operators - Using ACTUAL paths from your TouchDesigner project
+        # STEP 2: Get operators
         audio_analysis = op('/project1/s2l_audio/fixutres/audio_analysis')
         audio_params = op('/project1/src/s2l_manager/audio_params_table')
 
@@ -71,7 +157,7 @@ def onFrameStart(frame):
                 print("[audio_eos_exec] ERROR: Cannot find required operators")
             return
 
-        # Process audio → submasters
+        # STEP 3: Process audio → submasters with S2L parameters
         mapper.process_audio_to_subs(
             audio_analysis,
             audio_params,

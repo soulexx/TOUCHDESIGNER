@@ -70,6 +70,7 @@ def update_from_dmx(
     for instance, params in values.items():
         prev = _last_values.get(instance, {})
         for key, val in params.items():
+            # Only update when value actually changes (change detection)
             if prev.get(key) == val:
                 continue
             print(f"{_LOG_PREFIX} {instance}:{key} -> {val}")

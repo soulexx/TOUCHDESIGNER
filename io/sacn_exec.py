@@ -21,9 +21,11 @@ def whileOff(channel, sampleIndex, val, prev):
 	return
 
 def valueChange(channel, sampleIndex, val, prev):
-    if channel.index != 0 or sampleIndex != 0:
-        return
-    op('/project1/io/sacn_tick').module.onFrameStart(me)
+    # Trigger on ANY channel change (not just channel 0)
+    # This ensures FX on any DMX parameter get processed
+    frame_tick = op('/project1/io/frame_tick')
+    if frame_tick:
+        frame_tick.module.onFrameStart(me)
     return
 
 	

@@ -1,6 +1,3 @@
-# DEBUG: Counter to test if this runs
-_debug_counter = 0
-
 """
 REPLACE the content of /project1/io/frame_tick with this code.
 
@@ -58,11 +55,6 @@ def _chop_to_bytes(chop):
 
 
 def onFrameStart(dat):
-    global _debug_counter
-    _debug_counter += 1
-    if _debug_counter % 60 == 0:  # Print every 60 frames (1 second at 60fps)
-        print(f"[frame_tick] Running... counter={_debug_counter}")
-
     chop = _resolve_sacn_chop()
     if not chop:
         return
