@@ -13,7 +13,7 @@ from typing import Iterable, Tuple
 
 from .models import ParameterDefinition
 
-DMX_SLOTS_PER_INSTANCE = 14  # Reduced from 19
+DMX_SLOTS_PER_INSTANCE = 19  # Reduced from 19
 
 # NEW STRUCTURE:
 # DMX 1-8:  16-bit selection parameters (High/Low byte pairs)
@@ -54,7 +54,8 @@ _PARAMETERS: tuple[ParameterDefinition, ...] = (
         description="16-bit end cue number in selected cuelist",
     ),
 
-    # ========== 8-bit Value Parameters (Channels 9-14) ==========
+    # ========== 8-bit Value Parameters (Channels 9-19) ==========
+    # Audio Envelope Parameters (CH 9-12)
     ParameterDefinition(
         name="Threshold",
         dmx_slot_start=9,
@@ -87,21 +88,65 @@ _PARAMETERS: tuple[ParameterDefinition, ...] = (
         home_value=128,
         description="Release time (0=fast release, 255=slow release)",
     ),
+
+    # Audio Mode Parameters (CH 13-14)
+    ParameterDefinition(
+        name="FX_Polarity",
+        dmx_slot_start=13,
+        dmx_slot_count=1,
+        value_range=(0, 255),
+        home_value=0,
+        description="Submaster FX polarity: 0-127=normal, 128-255=inverted",
+    ),
     ParameterDefinition(
         name="Band",
-        dmx_slot_start=13,
+        dmx_slot_start=14,
         dmx_slot_count=1,
         value_range=(0, 255),
         home_value=0,
         description="Analysis band/mode: 0-41=low, 42-84=mid, 85-127=high, 128-169=smsd, 170-212=fmsd, 213-255=spectralCentroid",
     ),
+
+    # Auto Cue Parameters (CH 15-19)
     ParameterDefinition(
-        name="FX_Polarity",
-        dmx_slot_start=14,
+        name="AutoCueMode",
+        dmx_slot_start=15,
         dmx_slot_count=1,
         value_range=(0, 255),
         home_value=0,
-        description="FX polarity/mode: 0-127=normal, 128-255=inverted",
+        description="Auto cue start mode: 0-127=disabled, 128-255=enabled",
+    ),
+    ParameterDefinition(
+        name="MinSectionTime",
+        dmx_slot_start=16,
+        dmx_slot_count=1,
+        value_range=(0, 255),
+        home_value=128,
+        description="Minimum section time before auto-switching cues",
+    ),
+    ParameterDefinition(
+        name="CooldownAfterSwitch",
+        dmx_slot_start=17,
+        dmx_slot_count=1,
+        value_range=(0, 255),
+        home_value=64,
+        description="Cooldown time after cue switch",
+    ),
+    ParameterDefinition(
+        name="RequireConfidenceFrames",
+        dmx_slot_start=18,
+        dmx_slot_count=1,
+        value_range=(0, 255),
+        home_value=32,
+        description="Required confidence frames before cue switch",
+    ),
+    ParameterDefinition(
+        name="SongCooldownTime",
+        dmx_slot_start=19,
+        dmx_slot_count=1,
+        value_range=(0, 255),
+        home_value=128,
+        description="Cooldown time for song-level changes",
     ),
 )
 

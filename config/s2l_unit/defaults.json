@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "dmx_slots_per_instance": 14,
+    "dmx_slots_per_instance": 19,
     "osc_path": "/s2l"
   },
   "playback": {
@@ -14,7 +14,14 @@
     "attack": 64,
     "hold": 128,
     "release": 128,
-    "band": 0,
-    "fx_polarity": 0
+    "fx_polarity": 0,
+    "band": 0
+  },
+  "auto_cue": {
+    "auto_cue_mode": 0,
+    "min_section_time": 128,
+    "cooldown_after_switch": 64,
+    "require_confidence_frames": 32,
+    "song_cooldown_time": 128
   }
 }
