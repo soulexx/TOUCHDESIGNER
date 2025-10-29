@@ -13,10 +13,10 @@ S2L_UNIT_2	Submaster	0
 S2L_UNIT_2	Cuelist	0
 S2L_UNIT_2	StartCue	0
 S2L_UNIT_1	AutoCueMode	255
-S2L_UNIT_1	MinSectionTime	11
-S2L_UNIT_1	CooldownAfterSwitch	11
-S2L_UNIT_1	RequireConfidenceFrames	3
-S2L_UNIT_1	SongCooldownTime	8
+S2L_UNIT_1	MinSectionTime	1
+S2L_UNIT_1	CooldownAfterSwitch	1
+S2L_UNIT_1	RequireConfidenceFrames	0
+S2L_UNIT_1	SongCooldownTime	1
 S2L_UNIT_2	AutoCueMode	0
 S2L_UNIT_2	MinSectionTime	0
 S2L_UNIT_2	CooldownAfterSwitch	0
