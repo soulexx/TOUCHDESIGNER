@@ -265,6 +265,8 @@ MENU_SELECT_ACTIONS = {
 }
 
 _FADER_QUANT_DIGITS = 3
+_VIDEO_LAST_UPDATE = 0
+_VIDEO_UPDATE_INTERVAL = 0.033  # Limit video updates to ~30fps (reduce load on heavy video files)
 
 def _quantize_fader_value(val):
     try:
@@ -629,17 +631,88 @@ def handle_event(topic, value):
         func = getattr(filt_mod, 'fader_smooth', None) if filt_mod else None
         y = func(t, value) if callable(func) else (float(value) if base_topic == t else None)
         if y is not None:
-            y = _quantize_fader_value(y)
             path, scale = _lookup(act, base_topic)
             if path:
-                _send_osc(path, [float(y) * scale])
+                # Check if this is the video control path
+                if path.strip() == '/menu/video/normalized':
+                    try:
+                        # CHOP-based video control (better performance)
+                        fader_input = op('/project1/media/fader_input')
+                        transport = op('/project1/media/transport_control')
+                        if fader_input and transport:
+                            # Write fader value to CHOP
+                            fader_input.par.value0 = float(y)
+                            # Enable scrubbing mode (stops auto-play)
+                            transport.par.value0 = 0  # playing off
+                            transport.par.value1 = 1  # scrubbing on
+                    except Exception as exc:
+                        try:
+                            print("[video control] CHOP failed:", exc)
+                            import traceback
+                            traceback.print_exc()
+                        except Exception:
+                            pass
+                else:
+                    # Apply quantization for OSC output
+                    y_quantized = _quantize_fader_value(y)
+                    _send_osc(path, [float(y_quantized) * scale])
             else:
-                _send_osc('/' + base_topic, [float(y)])
+                y_quantized = _quantize_fader_value(y)
+                _send_osc('/' + base_topic, [float(y_quantized)])
         return True
 
-    # 4) Standard: Lookup und raus
+    # 4) Video control buttons (play/stop/pause)
+    # These are handled here before the standard OSC path lookup
+    # so we can intercept them and call video_control directly
+
+    # 5) Standard: Lookup und raus
     path, scale = _lookup(act, t)
     if path:
+        # Check for video control commands
+        path_clean = path.strip()
+        if path_clean in ('/menu/video/play', '/menu/video/stop', '/menu/video/pause'):
+            try:
+                analog_value = float(value)
+            except (ValueError, TypeError):
+                analog_value = 0.0
+            # Only trigger on button press (not release)
+            if analog_value >= 0.5:
+                try:
+                    # CHOP-based transport control
+                    transport = op('/project1/media/transport_control')
+                    constant1 = op('/project1/media/constant1')
+                    time_play = op('/project1/media/time_play')
+                    filter1 = op('/project1/media/filter1')
+
+                    if path_clean == '/menu/video/play':
+                        # Start auto-play: set time_play to current position, start playing
+                        if transport and constant1 and time_play and filter1:
+                            # Set time_play to current filter position (seamless continue)
+                            if filter1.numChans > 0:
+                                time_play.par.value0 = filter1[0].eval()
+                            # Enable playing
+                            constant1.par.value0 = 1  # velocity = 1
+                            transport.par.value0 = 1  # playing on
+                            transport.par.value1 = 0  # scrubbing off
+                        print("[video] Play")
+
+                    elif path_clean == '/menu/video/stop':
+                        # Stop = Pause (keep current position, allow fader scrubbing)
+                        if transport and constant1:
+                            constant1.par.value0 = 0  # velocity = 0
+                            transport.par.value0 = 0  # playing off
+                            transport.par.value1 = 1  # scrubbing on (fader can control)
+                        print("[video] Pause")
+
+                    elif path_clean == '/menu/video/pause':
+                        # Pause at current position (keep current frame)
+                        if transport:
+                            transport.par.value0 = 0  # playing off
+                            # Keep scrubbing enabled so current frame is maintained
+                        print("[video] Pause")
+                except Exception as exc:
+                    print(f"[video control] Button command failed: {exc}")
+            return True
         try:
             val_out = float(value)
         except Exception:

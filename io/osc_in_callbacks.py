@@ -85,7 +85,9 @@ def _handle_palette_event(address: str, args: Sequence[object]) -> None:
         handler = handler_comp.module
         handler.on_osc_receive(address, args, absTime.seconds)
     except Exception as exc:
+        import traceback
         print("[osc_in] palette handler error:", address, exc)
+        traceback.print_exc()
 
 
 def onReceiveOSC(dat, rowIndex, message, bytes, *args):

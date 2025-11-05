@@ -23,7 +23,8 @@ RE_CHANNELS = re.compile(
     r"^/eos/out/get/(?P<typ>ip|fp|cp|bp)/(?P<num>\d+)/channels/list/(?P<idx>\d+)/(?:\d+)$"
 )
 RE_BYTYPE = re.compile(
-    r"^/eos/out/get/(?P<typ>ip|fp|cp|bp)/(?P<num>\d+)/bytype/list/(?P<idx>\d+)/(?:\d+)$"
+    r"^/eos/out/get/(?P<typ>ip|fp|cp|bp)/(?P<num>\d+)/byType/list/(?P<idx>\d+)/(?:\d+)$",
+    re.IGNORECASE
 )
 
 
@@ -65,6 +66,9 @@ def on_osc_receive(address: str, args: Sequence[object], timestamp: float = 0.0)
     if not address.startswith("/eos/out/get/"):
         return
 
+    # Debug: Log ALL eos messages to see what's arriving
+    print(f"[palette] DEBUG OSC IN: {address} args={args[:3] if len(args) > 3 else args}...")
+
     match = RE_COUNT.match(address)
     if match:
         palette_type = match.group("typ")
@@ -77,36 +81,46 @@ def on_osc_receive(address: str, args: Sequence[object], timestamp: float = 0.0)
     if match:
         palette_type = match.group("typ")
         palette_num = int(match.group("num"))
-        index = int(float(args[0])) if args else int(match.group("idx"))
+        payload_index = int(float(args[0])) if args else int(match.group("idx"))
         uid = str(args[1]) if len(args) > 1 else ""
-        label = _clean_label(args[2:])
-        print(f"[palette] DEBUG received list: {palette_type} #{palette_num} idx={index} uid={uid} label='{label}'")
-        _update_row(
-            palette_type, index, num=palette_num, uid=uid, label=label
-        )
-        pump.on_list_ack(base, palette_type, index)
+        label = _clean_label(args[2:]) if len(args) > 2 else ""
+
+        # Handle deleted/empty palettes (payload_index = -1)
+        if payload_index == -1:
+            print(f"[palette] DEBUG received list: {palette_type} palette #{palette_num} DELETED/EMPTY")
+            # Still write the row (but with empty data)
+            _update_row(palette_type, palette_num, num=str(palette_num), uid="", label="(leer)")
+        else:
+            print(f"[palette] DEBUG received list: {palette_type} palette #{palette_num} payload_idx={payload_index} uid={uid} label='{label}'")
+            # Write to row palette_num
+            _update_row(palette_type, palette_num, num=str(palette_num), uid=uid, label=label)
+
+        # IMPORTANT: ACK with payload_index from the response (this is what pump needs)
+        print(f"[palette] DEBUG LIST ACK: {palette_type} palette #{palette_num} -> ack index={payload_index}")
+        pump.on_list_ack(base, palette_type, payload_index)
         return
 
     match = RE_CHANNELS.match(address)
     if match:
         palette_type = match.group("typ")
+        palette_num = int(match.group("num"))
         index = int(float(args[0])) if args else int(match.group("idx"))
         channels = " ".join(str(item) for item in args[1:])
-        print(f"[palette] DEBUG received channels: {palette_type} #{index} channels='{channels}'")
-        _update_row(palette_type, index, channels=channels)
+        print(f"[palette] DEBUG received channels: {palette_type} palette #{palette_num} idx={index} channels='{channels}'")
+        _update_row(palette_type, palette_num, channels=channels)
         return
 
     match = RE_BYTYPE.match(address)
     if match:
         palette_type = match.group("typ")
         palette_num = int(match.group("num"))  # Actual palette number from EOS
-        request_index = int(float(args[0])) if args else 0  # The 0-based index we requested
+        index = int(float(args[0])) if args else 0
         bytype = " ".join(str(item) for item in args[1:])
-        print(f"[palette] DEBUG received bytype: {palette_type} palette#{palette_num} (request_index={request_index}) bytype='{bytype}'")
+        print(f"[palette] DEBUG received bytype: {palette_type} palette #{palette_num} idx={index} bytype='{bytype}'")
         # Write to row palette_num
         _update_row(palette_type, palette_num, bytype=bytype)
-        # IMPORTANT: ACK to pump so it continues with next palette!
-        pump.on_list_ack(base, palette_type, request_index)
+        # IMPORTANT: ACK to pump with INDEX so it continues!
+        pump.on_list_ack(base, palette_type, index)
         return
 
     # Log unrecognized EOS messages for debugging

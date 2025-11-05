@@ -39,8 +39,7 @@ def _apply_count(palette_type: str, count: int) -> None:
     st.counts[palette_type] = count
     queue = st.queues[palette_type]
     queue.clear()
-    # EOS API uses 0-based indices for requests: /eos/get/{type}/index/0, index/1, ...
-    # EOS responds with actual palette numbers in the reply address
+    # EOS API uses 0-based index for requests: /eos/get/{type}/index/0, index/1, ...
     queue.extend(range(count))  # 0, 1, 2, ..., count-1
     st.active[palette_type] = None
     st.sent_at[palette_type] = 0.0
@@ -53,7 +52,7 @@ def on_list_ack(base, palette_type: str, index: int) -> None:
     """Acknowledge receipt of palette data for given index.
 
     Args:
-        index: The 0-based index that was requested (NOT the palette number)
+        index: The 0-based index that was requested
     """
     state.attach_base(base)
     st = state.state
@@ -95,7 +94,7 @@ def tick(base) -> None:
                 queue.popleft()
             st.active[palette_type] = None
             st.attempts[palette_type] = 0
-            print(f"[palette] WARN giving up on {palette_type} index {active}")
+            print(f"[palette] WARN giving up on {palette_type} palette #{active}")
             _send_next_index(palette_type)
         else:
             # Correct EOS OSC API: /eos/get/{type}/index/{index}
@@ -129,7 +128,7 @@ def _send_next_index(palette_type: str) -> None:
         return
     index = queue[0]
     # Correct EOS OSC API: /eos/get/{type}/index/{index}
-    # EOS will respond with /eos/out/get/{type}/{palette_num}/list/... containing actual palette data
+    # EOS will respond with /eos/out/get/{type}/{num}/list/... where {num} is the actual palette number
     print(f"[palette] DEBUG {palette_type} sending OSC: /eos/get/{palette_type}/index/{index}")
     osc.sendOSC(f"/eos/get/{palette_type}/index/{index}", [])
     st.active[palette_type] = index
