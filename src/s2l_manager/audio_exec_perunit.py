@@ -30,10 +30,14 @@ except:
     op = None
 
 # Setup paths
+if 'C:/_DEV/TOUCHDESIGNER/src' not in sys.path:
+    sys.path.insert(0, 'C:/_DEV/TOUCHDESIGNER/src')
 if 'C:/_DEV/TOUCHDESIGNER/src/s2l_unit' not in sys.path:
     sys.path.insert(0, 'C:/_DEV/TOUCHDESIGNER/src/s2l_unit')
 if 'C:/_DEV/TOUCHDESIGNER/src/s2l_manager' not in sys.path:
     sys.path.insert(0, 'C:/_DEV/TOUCHDESIGNER/src/s2l_manager')
+
+from td_helpers import project_flags
 
 # Import audio engine
 import audio_engine_perunit as engine
@@ -47,6 +51,25 @@ LOG_INTERVAL = 300  # Log stats every 300 frames (~5 seconds at 60fps)
 # Frame counter
 _frame_count = 0
 _total_osc_sent = 0
+
+
+def _processing_enabled() -> bool:
+    """Return whether per-unit audio processing should run."""
+    if project_flags:
+        try:
+            return project_flags.bool_flag("S2L_AUDIO_ENABLED", ENABLE_PROCESSING)
+        except Exception:
+            pass
+    if op:
+        base = op("/project1")
+        if base:
+            try:
+                override = base.fetch("S2L_AUDIO_ENABLED", None)
+                if override is not None:
+                    return bool(override)
+            except Exception:
+                pass
+    return bool(ENABLE_PROCESSING)
 
 
 def onFrameStart(frame):
@@ -63,7 +86,7 @@ def onFrameStart(frame):
         except:
             return
 
-    if not ENABLE_PROCESSING:
+    if not _processing_enabled():
         return
 
     try:
@@ -184,7 +207,7 @@ def show_config():
     print("=" * 80)
     print("AUDIO EXEC PER-UNIT CONFIGURATION")
     print("=" * 80)
-    print(f"Enabled: {ENABLE_PROCESSING}")
+    print(f"Enabled: {_processing_enabled()} (default={ENABLE_PROCESSING})")
     print(f"Values table: {VALUES_TABLE_PATH}")
     print(f"Audio CHOP: {AUDIO_CHOP_PATH}")
     print(f"Log interval: {LOG_INTERVAL} frames")

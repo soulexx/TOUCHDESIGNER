@@ -20,12 +20,46 @@ if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
 from td_helpers.file_ring_buffer import FileRingBuffer
+from td_helpers import project_flags
+
+
+def _history_limit(default: int = 512) -> int:
+    try:
+        return project_flags.int_flag("BUS_HISTORY_LIMIT", default)
+    except Exception:
+        return default
 
 _BUS_LOG = FileRingBuffer(
     BASE_PATH / "logs" / "bus_dispatch.log",
     max_lines=500,
     persist=True,
 )
+
+
+def _trim_bus_table(table, keep_limit):
+    if not table or table.numRows <= 1:
+        return
+    if keep_limit is None or keep_limit <= 0:
+        return
+    data_rows = table.numRows - 1
+    if data_rows <= keep_limit:
+        return
+    header = []
+    for c in range(table.numCols):
+        cell = table[0, c]
+        header.append(cell.val if cell else "")
+    start = max(1, table.numRows - keep_limit)
+    latest = []
+    for r in range(start, table.numRows):
+        row_vals = []
+        for c in range(table.numCols):
+            cell = table[r, c]
+            row_vals.append(cell.val if cell else "")
+        latest.append(row_vals)
+    table.clear()
+    table.appendRow(header)
+    for row_vals in latest:
+        table.appendRow(row_vals)
 
 
 def onTableChange(dat):
@@ -52,8 +86,8 @@ def onTableChange(dat):
     eng = op('/project1/layers/menus/menu_engine')
     flag = dat.fetch('debug_print', None)
     if flag is None:
-        dat.store('debug_print', True)
-    debug_print = bool(dat.fetch('debug_print', True))
+        dat.store('debug_print', False)
+    debug_print = bool(dat.fetch('debug_print', False))
     for r in range(start, end):
         p = T[r,cols['path']].val if T[r,cols['path']] else ''
         v = T[r,cols['val']].val  if T[r,cols['val']]  else '0'
@@ -83,5 +117,12 @@ def onTableChange(dat):
         except Exception as e:
             if debug_print:
                 print('[bus-dispatch] EXC handle_event:', e)
-    dat.store('last_row', end)
+    keep_limit = dat.fetch('max_rows', None)
+    try:
+        keep_limit = int(keep_limit) if keep_limit is not None else _history_limit()
+    except Exception:
+        keep_limit = _history_limit()
+
+    _trim_bus_table(T, keep_limit)
+    dat.store('last_row', T.numRows)
     return

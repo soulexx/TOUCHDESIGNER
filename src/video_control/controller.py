@@ -186,7 +186,7 @@ class VideoController:
         self._set_par(target, "play", 0)
         # Switch to index mode for scrubbing
         if hasattr(target.par, "playmode"):
-            self._set_par(target, "playmode", "indexmode")
+            self._set_par(target, "playmode", "specify")
 
     def toggle(self) -> None:
         target = self._target()
@@ -259,7 +259,30 @@ class VideoController:
         except RuntimeError:
             return None
         try:
-            return int(round(float(frame_par.eval())))
+            value = float(frame_par.eval())
+        except Exception:
+            return None
+        unit_par = getattr(target.par, "indexunit", None)
+        unit = ""
+        if unit_par is not None:
+            try:
+                unit = str(unit_par.eval()).strip().lower()
+            except Exception:
+                unit = ""
+
+        if unit == "fraction":
+            total = self._frame_count(target)
+            if total and total > 1:
+                return int(round(value * (total - 1)))
+            return int(round(value))
+
+        if unit == "seconds":
+            rate = self._rate(target)
+            if rate and rate > 0:
+                return int(round(value * rate))
+
+        try:
+            return int(round(value))
         except Exception:
             return None
 
@@ -276,7 +299,7 @@ class VideoController:
         target = self._target()
         rate = self._rate(target)
         if not rate:
-            raise RuntimeError("Cannot convert seconds – rate not available on video TOP")
+            raise RuntimeError("Cannot convert seconds - rate not available on video TOP")
         frame = int(round(float(seconds) * rate))
         self._set_par(target, "index", frame)
 
@@ -284,30 +307,34 @@ class VideoController:
         target = self._target()
         rate = self._rate(target)
         if not rate:
-            raise RuntimeError("Cannot convert seconds – rate not available on video TOP")
+            raise RuntimeError("Cannot convert seconds - rate not available on video TOP")
         current = self._current_frame(target) or 0
         frame = current + int(round(float(delta_seconds) * rate))
         self._set_par(target, "index", frame)
 
     def set_normalized_time(self, value: float) -> None:
+        """Set video position to a normalized time (0.0 to 1.0).
+
+        This pauses playback and jumps to the specified position.
+        No CHOP dependencies - direct parameter control.
+        """
         target = self._target()
         normalized = max(0.0, min(1.0, float(value)))
-        total = self._frame_count(target)
-        if not total or total <= 1:
-            self._set_par(target, "index", int(normalized * 1000.0))
-            return
-        frame = int(round(normalized * (total - 1)))
-        # Always update the frame
-        try:
-            print(f"[vc] Setting frame {frame} (normalized={normalized:.6f}, total={total})")
-            self._set_par(target, "index", frame)
-            # Verify it was set
-            actual = self._current_frame(target)
-            print(f"[vc] Frame after set: {actual}")
-        except Exception as e:
-            print(f"[vc] ERROR setting frame: {e}")
-            import traceback
-            traceback.print_exc()
+
+        # Pause playback
+        if hasattr(target.par, "play"):
+            self._set_par(target, "play", 0)
+
+        # Switch to specify mode for manual index control
+        if hasattr(target.par, "playmode"):
+            self._set_par(target, "playmode", "specify")
+
+        # Set index unit to fraction (0..1)
+        if hasattr(target.par, "indexunit"):
+            self._set_par(target, "indexunit", "fraction")
+
+        # Set the index directly
+        self._set_par(target, "index", normalized)
 
     # ------------------------------------------------------------------ #
     # Introspection

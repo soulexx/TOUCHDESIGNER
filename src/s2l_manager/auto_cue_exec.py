@@ -29,12 +29,15 @@ except:
     op = None
 
 # Setup paths
+if 'C:/_DEV/TOUCHDESIGNER/src' not in sys.path:
+    sys.path.insert(0, 'C:/_DEV/TOUCHDESIGNER/src')
 if 'C:/_DEV/TOUCHDESIGNER/src/s2l_manager' not in sys.path:
     sys.path.insert(0, 'C:/_DEV/TOUCHDESIGNER/src/s2l_manager')
 
 # Import engines
 import music_analyzer
 import auto_cue_engine
+from td_helpers import project_flags
 
 # ============================================================================
 # CONFIGURATION
@@ -43,7 +46,7 @@ import auto_cue_engine
 VALUES_TABLE_PATH = "/project1/src/s2l_manager/values"
 AUDIO_CHOP_PATH = "/project1/s2l_audio/fixutres/audio_analysis"
 
-ENABLE_PROCESSING = True  # Set to False to disable auto-cue globally
+ENABLE_PROCESSING = True
 LOG_INTERVAL = 300  # Log stats every N frames (~5 seconds at 60fps)
 
 # Default parameters (used when unit has no DMX values yet)
@@ -59,6 +62,25 @@ DEFAULT_SONG_COOLDOWN_SEC = 30.0
 _frame_count = 0
 _total_cues_fired = 0
 _last_analyzer_output = None
+
+
+def _processing_enabled() -> bool:
+    """Return whether auto-cue processing should run this frame."""
+    if project_flags:
+        try:
+            return project_flags.bool_flag("AUTO_CUE_ENABLED", ENABLE_PROCESSING)
+        except Exception:
+            pass
+    if op:
+        base = op("/project1")
+        if base:
+            try:
+                override = base.fetch("AUTO_CUE_ENABLED", None)
+                if override is not None:
+                    return bool(override)
+            except Exception:
+                pass
+    return bool(ENABLE_PROCESSING)
 
 
 # ============================================================================
@@ -96,22 +118,22 @@ def _get_analyzer_params_from_table(values_table):
             param_value = values_table[row, 2].val
 
             if param_name == 'MinSectionTime':
-                # CH16: 0-255 → 1-100s
+                # CH16: 0-255 -> 1-100s
                 dmx = int(param_value)
                 params['min_section_time_sec'] = 1.0 + (dmx / 255.0) * 99.0
 
             elif param_name == 'CooldownAfterSwitch':
-                # CH17: 0-255 → 1-100s
+                # CH17: 0-255 -> 1-100s
                 dmx = int(param_value)
                 params['cooldown_sec'] = 1.0 + (dmx / 255.0) * 99.0
 
             elif param_name == 'RequireConfidenceFrames':
-                # CH18: 0-255 → 0-2550ms
+                # CH18: 0-255 -> 0-2550ms
                 dmx = int(param_value)
                 params['confidence_ms'] = dmx * 10.0
 
             elif param_name == 'SongCooldownTime':
-                # CH19: 0-255 → 1-990s
+                # CH19: 0-255 -> 1-990s
                 dmx = int(param_value)
                 params['song_cooldown_sec'] = 1.0 + (dmx / 255.0) * 989.0
 
@@ -142,7 +164,7 @@ def onFrameStart(frame):
         except:
             return
 
-    if not ENABLE_PROCESSING:
+    if not _processing_enabled():
         return
 
     try:
@@ -357,7 +379,7 @@ def show_config():
     print("=" * 80)
     print("AUTO-CUE EXEC CONFIGURATION")
     print("=" * 80)
-    print(f"Enabled: {ENABLE_PROCESSING}")
+    print(f"Enabled: {_processing_enabled()} (default={ENABLE_PROCESSING})")
     print(f"Values table: {VALUES_TABLE_PATH}")
     print(f"Audio CHOP: {AUDIO_CHOP_PATH}")
     print(f"Log interval: {LOG_INTERVAL} frames")

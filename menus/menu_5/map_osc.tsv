@@ -4,15 +4,15 @@ enc/2/delta	midicraft	1	7	/eos/wheel/pan	1	1
 enc/3/delta	midicraft	1	8	/eos/wheel/tilt	1	1	
 enc/4/delta	midicraft	1	9	/eos/wheel/zoom	1	1	
 enc/5/delta	midicraft	1	10	/eos/wheel/edge	1	1	
-fader/1	midicraft	1	16	/menu/video/normalized	1	1	
+fader/2	midicraft	1	17	/menu/video/normalized	1	1	
 __menu_color__					1	yellow
 btn/11	midicraft	1	21	/eos/key/stop	1	1	red
-btn/12	midicraft	1	22	/menu/video/stop	1	1	red
+btn/12	midicraft	1	22	/menu/video/toggle	1	1	
 btn/13	midicraft	1	23		1	1	yellow
 btn/14	midicraft	1	24		1	1	yellow
 btn/15	midicraft	1	25	/eos/key/group && /eos/key/last && /eos/key/enter	1	1	yellow
 btn/21	midicraft	1	26	/eos/key/go_0	1	1	green
-btn/22	midicraft	1	27	/menu/video/play	1	1	green
+btn/22	midicraft	1	27		1	1	green
 btn/23	midicraft	1	28		1	1	yellow
 btn/24	midicraft	1	29		1	1	yellow
 btn/25	midicraft	1	30	/eos/key/group && /eos/key/next && /eos/key/enter	1	1	yellow

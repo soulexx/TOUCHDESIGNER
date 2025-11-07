@@ -3,9 +3,18 @@
     "allow": [
       "Bash(python:*)",
       "Bash(awk:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm install:*)",
+      "Bash(npx @bottobot/td-mcp --version)",
+      "Bash(npx -y touchdesigner-mcp-server@latest --help)",
+      "Bash(npm view:*)",
+      "Bash(npx @bottobot/td-mcp)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enableAllProjectMcpServers": true
 }

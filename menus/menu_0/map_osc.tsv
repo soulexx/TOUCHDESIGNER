@@ -1,0 +1,90 @@
+topic	device	midi_channel	control_id	path_out	scale	enabled	led_color
+__menu_color__					1	grey
+btn/11	midicraft	1	21	/menu/0/sub/0	1	1	white
+btn/12	midicraft	1	22	/menu/0/sub/1	1	1	white
+btn/13	midicraft	1	23	/menu/0/sub/2	1	1	white
+btn/14	midicraft	1	24	/menu/0/sub/3	1	1	white
+btn/15	midicraft	1	25	/menu/0/sub/4	1	1	white
+btn/21	midicraft	1	26			1	1	white
+btn/22	midicraft	1	27			1	1	white
+btn/23	midicraft	1	28			1	1	white
+btn/24	midicraft	1	29			1	1	white
+btn/25	midicraft	1	30			1	1	white
+__submenu__ 0.1
+enc/1/delta	midicraft	1	6	/eos/wheel/level	1	1	white
+enc/2/delta	midicraft	1	7	/eos/wheel/fine/tilt	1	1	white
+enc/3/delta	midicraft	1	8	/eos/wheel/fine/pan	1	1	white
+enc/4/delta	midicraft	1	9	/eos/wheel/fine/zoom	1	1	white
+enc/5/delta	midicraft	1	10	/eos/wheel/fine/edge	1	1	white
+encPush/1	midicraft	1	1	/eos/param/intensity/home	1	1	white
+encPush/2	midicraft	1	2	/eos/param/tilt/home	1	1	white
+encPush/3	midicraft	1	3	/eos/param/pan/home	1	1	white
+encPush/4	midicraft	1	4	/eos/param/zoom/home	1	1	white
+encPush/5	midicraft	1	5	/eos/param/edge/home	1	1	white
+fader/1	midicraft	1	16	/eos/param/intensity	1	1	white
+fader/2	midicraft	1	17	/eos/param/tilt	1	1	white
+fader/3	midicraft	1	18	/eos/param/pan	1	1	white
+fader/4	midicraft	1	19	/eos/param/zoom	1	1	white
+fader/5	midicraft	1	20	/eos/param/edge	1	1	white
+__submenu__ 0.2
+enc/1/delta	midicraft	1	6	/eos/param/gobo_select	1	1	white
+enc/2/delta	midicraft	1	7	/eos/wheel/gobo_index_speed_2	1	1	white
+enc/3/delta	midicraft	1	8	/menu/0/2/enc3	1	1	white
+enc/4/delta	midicraft	1	9	/menu/0/2/enc4	1	1	white
+enc/5/delta	midicraft	1	10	/menu/0/2/enc5	1	1	white
+encPush/1	midicraft	1	1	/eos/param/gobo_select/home	1	1	white
+encPush/2	midicraft	1	2	/eos/param/gobo_index_speed_2/home	1	1	white
+encPush/3	midicraft	1	3	/menu/0/2/encpush3	1	1	white
+encPush/4	midicraft	1	4	/menu/0/2/encpush4	1	1	white
+encPush/5	midicraft	1	5	/menu/0/2/encpush5	1	1	white
+fader/1	midicraft	1	16	/eos/param/gobo_select	1	1	white
+fader/2	midicraft	1	17	/eos/param/gobo_select_2	1	1	white
+fader/3	midicraft	1	18	/menu/0/2/fader3	1	1	white
+fader/4	midicraft	1	19	/menu/0/2/fader4	1	1	white
+fader/5	midicraft	1	20	/menu/0/2/fader5	1	1	white
+__submenu__ 0.3
+enc/1/delta	midicraft	1	6	/eos/wheel/frame_angle_a	1	1	white
+enc/2/delta	midicraft	1	7	/eos/wheel/frame_angle_b	1	1	white
+enc/3/delta	midicraft	1	8	/eos/wheel/frame_angle_c	1	1	white
+enc/4/delta	midicraft	1	9	/eos/wheel/frame_angle_d	1	1	white
+encPush/1	midicraft	1	1	/eos/param/frame_angle_a/home && /eos/param/frame_thrust_a/home	1	1	white
+encPush/2	midicraft	1	2	/eos/param/frame_angle_b/home && /eos/param/frame_thrust_b/home	1	1	white
+encPush/3	midicraft	1	3	/eos/param/frame_angle_c/home && /eos/param/frame_thrust_c/home	1	1	white
+encPush/4	midicraft	1	4	/eos/param/frame_angle_d/home && /eos/param/frame_thrust_d/home	1	1	white
+fader/1	midicraft	1	16	/eos/param/frame_thrust_a	1	1	white
+fader/2	midicraft	1	17	/eos/param/frame_thrust_b	1	1	white
+fader/3	midicraft	1	18	/eos/param/frame_thrust_c	1	1	white
+fader/4	midicraft	1	19	/eos/param/frame_thrust_d	1	1	white
+fader/5	midicraft	1	20	/eos/param/frame_assembly	1	1	white
+__submenu__ 0.4
+enc/1/delta	midicraft	1	6	/eos/wheel/fine/red	1	1	green
+enc/2/delta	midicraft	1	7	/eos/wheel/fine/green	1	1	green
+enc/3/delta	midicraft	1	8	/eos/wheel/fine/blue	1	1	green
+enc/4/delta	midicraft	1	9	/eos/wheel/fine/white	1	1	green
+enc/5/delta	midicraft	1	10	/eos/wheel/fine/amber	1	1	green
+encPush/1	midicraft	1	1	/eos/param/red/home	1	1	green
+encPush/2	midicraft	1	2	/eos/param/green/home	1	1	green
+encPush/3	midicraft	1	3	/eos/param/blue/home	1	1	green
+encPush/4	midicraft	1	4	/eos/param/white/home	1	1	green
+encPush/5	midicraft	1	5	/eos/param/amber/home	1	1	green
+fader/1	midicraft	1	16	/eos/param/red	1	1	green
+fader/2	midicraft	1	17	/eos/param/green	1	1	green
+fader/3	midicraft	1	18	/eos/param/blue	1	1	green
+fader/4	midicraft	1	19	/eos/param/white	1	1	green
+fader/5	midicraft	1	20	/eos/param/amber	1	1	green
+__submenu__ 0.5
+enc/1/delta	midicraft	1	6	/menu/0/5/enc1	1	1	white
+enc/2/delta	midicraft	1	7	/menu/0/5/enc2	1	1	white
+enc/3/delta	midicraft	1	8	/menu/0/5/enc3	1	1	white
+enc/4/delta	midicraft	1	9	/menu/0/5/enc4	1	1	white
+enc/5/delta	midicraft	1	10	/menu/0/5/enc5	1	1	white
+encPush/1	midicraft	1	1	/menu/0/5/encpush1	1	1	white
+encPush/2	midicraft	1	2	/menu/0/5/encpush2	1	1	white
+encPush/3	midicraft	1	3	/menu/0/5/encpush3	1	1	white
+encPush/4	midicraft	1	4	/menu/0/5/encpush4	1	1	white
+encPush/5	midicraft	1	5	/menu/0/5/encpush5	1	1	white
+fader/1	midicraft	1	16	/menu/0/5/fader1	1	1	white
+fader/2	midicraft	1	17	/menu/0/5/fader2	1	1	white
+fader/3	midicraft	1	18	/menu/0/5/fader3	1	1	white
+fader/4	midicraft	1	19	/menu/0/5/fader4	1	1	white
+fader/5	midicraft	1	20	/menu/0/5/fader5	1	1	white

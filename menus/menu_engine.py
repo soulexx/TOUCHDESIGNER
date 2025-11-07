@@ -55,6 +55,38 @@ def _macro_path_spec(number: int) -> str:
 
 
 _SUBMENU_CONFIG = {
+    0: [
+        {
+            "key": _normalize_submenu_key("0.1"),
+            "label": "submenu 0.1",
+            "blink": None,
+            "action": None,
+        },
+        {
+            "key": _normalize_submenu_key("0.2"),
+            "label": "submenu 0.2",
+            "blink": None,
+            "action": None,
+        },
+        {
+            "key": _normalize_submenu_key("0.3"),
+            "label": "submenu 0.3",
+            "blink": None,
+            "action": None,
+        },
+        {
+            "key": _normalize_submenu_key("0.4"),
+            "label": "submenu 0.4",
+            "blink": None,
+            "action": None,
+        },
+        {
+            "key": _normalize_submenu_key("0.5"),
+            "label": "submenu 0.5",
+            "blink": None,
+            "action": None,
+        },
+    ],
     4: [
         {
             "key": _normalize_submenu_key("form"),
@@ -75,6 +107,35 @@ _SUBMENU_CONFIG = {
             "action": _macro_path_spec(1206),
         },
     ],
+}
+
+_MENU0_SUB_BUTTONS = {
+    11: 0,
+    12: 1,
+    13: 2,
+    14: 3,
+    15: 4,
+}
+
+_PARAM_RANGES = {
+    '/eos/param/intensity': (0.0, 100.0),
+    '/eos/param/intens': (0.0, 100.0),
+    '/eos/param/pan': (-270.0, 270.0),
+    '/eos/param/tilt': (-135.0, 135.0),
+    '/eos/param/zoom': (0.0, 100.0),
+    '/eos/param/edge': (0.0, 100.0),
+    '/eos/param/red': (0.0, 100.0),
+    '/eos/param/green': (0.0, 100.0),
+    '/eos/param/blue': (0.0, 100.0),
+    '/eos/param/white': (0.0, 100.0),
+    '/eos/param/amber': (0.0, 100.0),
+    '/eos/param/frame_thrust_a': (0.0, 100.0),
+    '/eos/param/frame_thrust_b': (0.0, 100.0),
+    '/eos/param/frame_thrust_c': (0.0, 100.0),
+    '/eos/param/frame_thrust_d': (0.0, 100.0),
+    '/eos/param/frame_assembly': (-60.0, 60.0),
+    '/eos/param/gobo_index_speed_1': (-100.0, 100.0),
+    '/eos/param/gobo_index_speed_2': (-100.0, 100.0),
 }
 
 
@@ -280,7 +341,7 @@ def _quantize_fader_value(val):
 
 def _ensure_active():
     act = _get_active()
-    if not act:
+    if act is None:
         _set_active(DEFAULT_MENU)
         try:
             apply_menu_leds(DEFAULT_MENU)
@@ -346,7 +407,7 @@ def _button_color(menu_idx:int, topic:str):
 
 def _all_menu_button_topics():
     topics = set()
-    for idx in range(1,6):
+    for idx in range(0,6):
         T = op(f"/project1/layers/menus/menu_{int(idx)}/map_osc")
         if not T or T.numRows < 2:
             continue
@@ -410,14 +471,34 @@ _WHEEL_STAGE_SCALE = {
     'coarse': 2.0,
 }
 
+def _apply_menu0_selector_leds(drv):
+    if not drv:
+        return
+    active_idx = _get_submenu_index(0)
+    if active_idx is None:
+        active_idx = 0
+    active_idx = int(active_idx)
+    for btn_idx, sub_idx in _MENU0_SUB_BUTTONS.items():
+        topic = f"btn/{btn_idx}"
+        color = 'white'
+        state = "press" if sub_idx == active_idx else "idle"
+        drv.module.send_led(topic, state, color, do_send=True)
+
 def apply_menu_leds(menu_idx:int):
     """Nur Buttons bekommen LEDs; Encoder/EncPush/Fader NICHT."""
+    drv = DRV
+    if not drv:
+        print("[menu] WARN: driver missing");
+        return
     T = op(f"/project1/layers/menus/menu_{int(menu_idx)}/map_osc")
-    if not T or not DRV:
-        print("[menu] WARN: map/driver missing");
+    zero_mode = int(menu_idx) == 0
+    if not T:
+        print("[menu] WARN: map missing");
+        if zero_mode:
+            _apply_menu0_selector_leds(drv)
         return
     for topic in _all_menu_button_topics():
-        DRV.module.send_led(topic, "off", "", do_send=True)
+        drv.module.send_led(topic, "off", "", do_send=True)
 
     cols = { T[0,c].val.strip().lower(): c for c in range(T.numCols) }
     ci_topic = cols.get("topic"); ci_color = cols.get("led_color"); ci_en = cols.get("enabled")
@@ -433,13 +514,16 @@ def apply_menu_leds(menu_idx:int):
             continue
         color = (T[r,ci_color].val.strip() if (ci_color is not None and T[r,ci_color]) else "")
         if color:
-            DRV.module.send_led(topic, "idle", color, do_send=True)
+            drv.module.send_led(topic, "idle", color, do_send=True)
 
     for i in range(1,6):
         topic = f"btn/{i}"
         color_i = _menu_color(i)
         state = "press" if i == int(menu_idx) else "idle"
-        DRV.module.send_led(topic, state, color_i, do_send=True)
+        drv.module.send_led(topic, state, color_i, do_send=True)
+
+    if zero_mode:
+        _apply_menu0_selector_leds(drv)
 
     # Update submenu LED feedback LAST (so blink pattern takes priority)
     _update_submenu_led_feedback(menu_idx)
@@ -466,26 +550,42 @@ def handle_event(topic, value):
             idx = int(t.split('/')[-1])
         except (ValueError, IndexError, AttributeError):
             idx = None
-        if idx and 1 <= idx <= 5:
+        analog_value = None
+        if idx is not None:
             try:
                 analog_value = float(value)
             except (ValueError, TypeError):
                 analog_value = 0.0
+        if idx and 1 <= idx <= 5:
             pressed = analog_value >= 0.5
             previous = _get_active()
             if pressed:
                 if previous != idx:
                     _set_active(idx)
                     apply_menu_leds(idx)
-                elif idx == 4:
-                    _advance_submenu(idx)
-                    apply_menu_leds(idx)
+                else:
+                    if idx in _SUBMENU_CONFIG:
+                        _advance_submenu(idx)
+                        apply_menu_leds(idx)
+                    else:
+                        _set_active(0)
+                        apply_menu_leds(0)
             action_spec = _menu_button_action(idx)
             if action_spec is not None:
                 _send_path_spec(action_spec, [analog_value])
             return True
 
         act_btn = _get_active()
+        if act_btn == 0 and idx in _MENU0_SUB_BUTTONS:
+            pressed = analog_value >= 0.5 if analog_value is not None else False
+            if pressed:
+                _set_submenu_index(0, _MENU0_SUB_BUTTONS[idx])
+                apply_menu_leds(0)
+            analog_out = analog_value if analog_value is not None else 0.0
+            path, scale = _lookup(0, t)
+            if path:
+                _send_path_spec(path, [analog_out])
+            return True
         if act_btn and DRV:
             color = _button_color(act_btn, t)
             if color:
@@ -497,7 +597,7 @@ def handle_event(topic, value):
         # Button-Events ohne Menue-Wechsel laufen weiter zur OSC-Verarbeitung
 
     act = _get_active()
-    if not act:
+    if act is None:
         return False
 
     # 2) Encoder relativ ('enc/x' -> 'enc/x/delta' nach Filter)
@@ -653,6 +753,16 @@ def handle_event(topic, value):
                         except Exception:
                             pass
                 else:
+                    path_clean = path.strip()
+                    if path_clean in _PARAM_RANGES:
+                        try:
+                            value_norm = max(0.0, min(1.0, float(y)))
+                        except Exception:
+                            value_norm = 0.0
+                        lo, hi = _PARAM_RANGES[path_clean]
+                        payload = lo + (hi - lo) * value_norm
+                        _send_osc(path_clean, [payload])
+                        return True
                     # Apply quantization for OSC output
                     y_quantized = _quantize_fader_value(y)
                     _send_osc(path, [float(y_quantized) * scale])
