@@ -1,4 +1,4 @@
-topic	device	midi_channel	control_id	path_out	scale	enabled	led_color
+topic	device	midi_channel	control_id	path_out	scale	enabled	led_color	path_out_long
 __menu_color__					1	grey
 btn/11	midicraft	1	21	/menu/0/sub/0	1	1	white
 btn/12	midicraft	1	22	/menu/0/sub/1	1	1	white
@@ -33,7 +33,7 @@ enc/3/delta	midicraft	1	8	/menu/0/2/enc3	1	1	white
 enc/4/delta	midicraft	1	9	/menu/0/2/enc4	1	1	white
 enc/5/delta	midicraft	1	10	/menu/0/2/enc5	1	1	white
 encPush/1	midicraft	1	1	/eos/param/gobo_select/home	1	1	white
-encPush/2	midicraft	1	2	/eos/param/gobo_index_speed_2/home	1	1	white
+encPush/2	midicraft	1	2	/eos/param/gobo_index_speed_2/home	1	1	white	/eos/param/gobo_index_speed_2/reset
 encPush/3	midicraft	1	3	/menu/0/2/encpush3	1	1	white
 encPush/4	midicraft	1	4	/menu/0/2/encpush4	1	1	white
 encPush/5	midicraft	1	5	/menu/0/2/encpush5	1	1	white

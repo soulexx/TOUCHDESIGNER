@@ -350,15 +350,20 @@ def _ensure_active():
 
 
 def _lookup(menu_idx:int, topic:str):
-    """Look up normalized topic (no leading slash) in menu_X/map_osc."""
+    """Look up normalized topic (no leading slash) in menu_X/map_osc.
+
+    Returns:
+        tuple: (path_out, scale, path_out_long)
+    """
     T = op(f"/project1/layers/menus/menu_{int(menu_idx)}/map_osc")
     if not T:
-        return None, 1.0
+        return None, 1.0, None
     cols = { T[0,c].val.strip().lower(): c for c in range(T.numCols) }
     ci_topic = cols.get('topic'); ci_path = cols.get('path_out')
     ci_scale = cols.get('scale'); ci_en   = cols.get('enabled')
+    ci_path_long = cols.get('path_out_long')
     if ci_topic is None:
-        return None, 1.0
+        return None, 1.0, None
     t = (topic or '').lstrip('/')
     tracker = _submenu_tracker(menu_idx)
     for r in range(1, T.numRows):
@@ -375,8 +380,9 @@ def _lookup(menu_idx:int, topic:str):
         if topic_cell.val.strip().lstrip('/') == t:
             path  = T[r,ci_path].val if (ci_path is not None and T[r,ci_path]) else ''
             scale = float(T[r,ci_scale].val) if (ci_scale is not None and T[r,ci_scale] and T[r,ci_scale].val) else 1.0
-            return path, scale
-    return None, 1.0
+            path_long = T[r,ci_path_long].val.strip() if (ci_path_long is not None and T[r,ci_path_long]) else ''
+            return path, scale, (path_long if path_long else None)
+    return None, 1.0, None
 
 def _topic_color(menu_idx:int, topic:str):
     T = op(f"/project1/layers/menus/menu_{int(menu_idx)}/map_osc")
@@ -582,7 +588,7 @@ def handle_event(topic, value):
                 _set_submenu_index(0, _MENU0_SUB_BUTTONS[idx])
                 apply_menu_leds(0)
             analog_out = analog_value if analog_value is not None else 0.0
-            path, scale = _lookup(0, t)
+            path, scale, path_long = _lookup(0, t)
             if path:
                 _send_path_spec(path, [analog_out])
             return True
@@ -656,7 +662,7 @@ def handle_event(topic, value):
                 continue
 
             look = t + '/delta'     # 'enc/1/delta'
-            path, scale = _lookup(act, look)
+            path, scale, path_long = _lookup(act, look)
             base_path = (path or '').strip() if path else ''
 
             # Special handling for gobo_select (discrete slot selection)
@@ -731,7 +737,7 @@ def handle_event(topic, value):
         func = getattr(filt_mod, 'fader_smooth', None) if filt_mod else None
         y = func(t, value) if callable(func) else (float(value) if base_topic == t else None)
         if y is not None:
-            path, scale = _lookup(act, base_topic)
+            path, scale, path_long = _lookup(act, base_topic)
             if path:
                 # Check if this is the video control path
                 if path.strip() == '/menu/video/normalized':
@@ -776,7 +782,64 @@ def handle_event(topic, value):
     # so we can intercept them and call video_control directly
 
     # 5) Standard: Lookup und raus
-    path, scale = _lookup(act, t)
+    path, scale, path_long = _lookup(act, t)
+
+    # Handle button long press (btn/, encPush/)
+    if t.startswith(('btn/', 'encPush/')):
+        FILT = op('/project1/layers/menus/event_filters')
+        filt_mod = FILT.module if FILT else None
+        btn_func = getattr(filt_mod, 'button_press', None) if filt_mod else None
+
+        if callable(btn_func):
+            result = btn_func(t, value)
+            if result:
+                action_type, payload = result
+                if action_type == 'press':
+                    # Short press - execute immediately (optimistic)
+                    if path:
+                        # Check for video control commands
+                        path_clean = path.strip()
+                        if path_clean in ('/menu/video/play', '/menu/video/stop', '/menu/video/pause'):
+                            try:
+                                # CHOP-based transport control
+                                transport = op('/project1/media/transport_control')
+                                constant1 = op('/project1/media/constant1')
+                                time_play = op('/project1/media/time_play')
+                                filter1 = op('/project1/media/filter1')
+
+                                if path_clean == '/menu/video/play':
+                                    if transport and constant1 and time_play and filter1:
+                                        if filter1.numChans > 0:
+                                            time_play.par.value0 = filter1[0].eval()
+                                        constant1.par.value0 = 1
+                                        transport.par.value0 = 1
+                                        transport.par.value1 = 0
+                                    print("[video] Play")
+                                elif path_clean == '/menu/video/stop':
+                                    if transport and constant1:
+                                        constant1.par.value0 = 0
+                                        transport.par.value0 = 0
+                                        transport.par.value1 = 1
+                                    print("[video] Pause")
+                                elif path_clean == '/menu/video/pause':
+                                    if transport:
+                                        transport.par.value0 = 0
+                                    print("[video] Pause")
+                            except Exception as exc:
+                                print(f"[video control] Button command failed: {exc}")
+                        else:
+                            _send_path_spec(path, [float(payload) * scale])
+                elif action_type == 'long_press':
+                    # Long press - execute long action with toggle
+                    if path_long:
+                        try:
+                            print(f"[long press] {t} -> {path_long} = {payload}")
+                        except Exception:
+                            pass
+                        _send_path_spec(path_long, [float(payload)])
+            return True
+
+    # Non-button events (fader, enc, etc.)
     if path:
         # Check for video control commands
         path_clean = path.strip()

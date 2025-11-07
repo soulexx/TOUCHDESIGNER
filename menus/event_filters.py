@@ -22,11 +22,16 @@ ENC_DEBUG            = False  # True -> Debug-Log pro Event
 FADER_ALPHA = 1.0
 FADER_EPS   = 0.0
 
+# Button Long Press
+BUTTON_LONG_PRESS_MS = 1000  # 1 second threshold
+
 _enc_acc       = defaultdict(int)          # topic -> sum
 _enc_last_ts   = defaultdict(float)        # topic -> last timestamp
 _enc_stage     = defaultdict(lambda: 'normal')  # topic -> last stage
 _fader_ema   = {}                  # base-topic -> last
 _fader_parts = defaultdict(lambda: {'msb': None, 'lsb': None})  # base-topic -> latest 7-bit parts
+_btn_press_start = {}              # topic -> timestamp when button was pressed
+_btn_toggle_state = {}             # topic -> current toggle state (0/1)
 
 def _clamp(val, lo, hi):
     return max(lo, min(hi, val))
@@ -147,4 +152,71 @@ def fader_smooth(topic, val01):
 
     _fader_ema[base] = value
     return float(value)
+
+
+def button_press(topic, value):
+    """
+    Handle button press with optimistic short press and long press detection.
+
+    Optimistic Press Pattern:
+    - On button press: immediately return ('press', value) for instant feedback
+    - On button release: check hold duration
+      - If < 1000ms: short press (already handled)
+      - If >= 1000ms: return ('long_press', toggle_value) for long action
+
+    Args:
+        topic (str): Button topic (e.g., 'btn/11', 'encPush/2')
+        value (float): Button value (0 = released, 1 = pressed)
+
+    Returns:
+        - ('press', value): On button press - execute short action immediately
+        - ('long_press', toggle_value): On long press release - execute long action
+        - None: On short press release (already handled)
+
+    Example usage in menu_engine:
+        result = button_press(topic, value)
+        if result:
+            action_type, payload = result
+            if action_type == 'press':
+                # Execute short action (path_out)
+                send_osc(short_path, payload)
+            elif action_type == 'long_press':
+                # Execute long action (path_out_long) with toggle
+                send_osc(long_path, payload)
+    """
+    now = time.monotonic()
+
+    try:
+        val = float(value)
+    except Exception:
+        val = 0.0
+
+    is_pressed = val >= 0.5
+
+    if is_pressed:
+        # Button just pressed - store timestamp and return immediate action
+        _btn_press_start[topic] = now
+        return ('press', val)
+    else:
+        # Button released - check if it was a long press
+        press_start = _btn_press_start.get(topic)
+        if press_start is None:
+            # No press start recorded, ignore
+            return None
+
+        # Clear press start
+        _btn_press_start.pop(topic, None)
+
+        # Calculate hold duration
+        duration_ms = (now - press_start) * 1000.0
+
+        if duration_ms >= BUTTON_LONG_PRESS_MS:
+            # Long press detected - toggle state
+            current = _btn_toggle_state.get(topic, 0)
+            new_state = 1 if current == 0 else 0
+            _btn_toggle_state[topic] = new_state
+            return ('long_press', float(new_state))
+        else:
+            # Short press - already handled on press event
+            return None
 

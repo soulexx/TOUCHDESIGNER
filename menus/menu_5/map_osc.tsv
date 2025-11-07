@@ -1,4 +1,4 @@
-topic	device	midi_channel	control_id	path_out	scale	enabled	led_color
+topic	device	midi_channel	control_id	path_out	scale	enabled	led_color	path_out_long
 enc/1/delta	midicraft	1	6	/eos/wheel/level	1	1	
 enc/2/delta	midicraft	1	7	/eos/wheel/pan	1	1	
 enc/3/delta	midicraft	1	8	/eos/wheel/tilt	1	1	
