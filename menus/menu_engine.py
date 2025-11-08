@@ -34,9 +34,38 @@ def _send_path_spec(path_spec, payload):
     """Send payload to each OSC address defined in the spec."""
     sent = False
     for addr in _iter_path_targets(path_spec):
-        _send_osc(addr, payload)
+        # EOS key commands: send without arguments to trigger once
+        if addr.lower().startswith('/eos/key/'):
+            _send_osc(addr, [])  # No arguments
+        else:
+            _send_osc(addr, payload)
         sent = True
     return sent
+
+
+def _handle_long_press_action(path_spec, payload):
+    """Handle long press payload conversion before dispatching OSC."""
+    if not path_spec:
+        return
+    normalized = str(path_spec).strip()
+    if not normalized:
+        return
+    norm_key = normalized.lower()
+
+    try:
+        payload_val = float(payload)
+    except Exception:
+        payload_val = 0.0
+
+    override = _LONG_PRESS_VALUE_OVERRIDES.get(norm_key)
+    if override:
+        idx = 1 if payload_val >= 0.5 else 0
+        idx = min(idx, len(override) - 1)
+        target_value = override[idx]
+        _send_path_spec(normalized, [float(target_value)])
+        return
+
+    _send_path_spec(path_spec, [payload_val])
 
 
 def _normalize_submenu_key(value: str) -> str:
@@ -57,6 +86,12 @@ def _macro_path_spec(number: int) -> str:
 _SUBMENU_CONFIG = {
     0: [
         {
+            "key": _normalize_submenu_key("0.0"),
+            "label": "submenu 0.0 (off)",
+            "blink": None,
+            "action": None,
+        },
+        {
             "key": _normalize_submenu_key("0.1"),
             "label": "submenu 0.1",
             "blink": None,
@@ -71,18 +106,6 @@ _SUBMENU_CONFIG = {
         {
             "key": _normalize_submenu_key("0.3"),
             "label": "submenu 0.3",
-            "blink": None,
-            "action": None,
-        },
-        {
-            "key": _normalize_submenu_key("0.4"),
-            "label": "submenu 0.4",
-            "blink": None,
-            "action": None,
-        },
-        {
-            "key": _normalize_submenu_key("0.5"),
-            "label": "submenu 0.5",
             "blink": None,
             "action": None,
         },
@@ -110,11 +133,9 @@ _SUBMENU_CONFIG = {
 }
 
 _MENU0_SUB_BUTTONS = {
-    11: 0,
-    12: 1,
-    13: 2,
-    14: 3,
-    15: 4,
+    11: 1,
+    12: 2,
+    13: 3,
 }
 
 _PARAM_RANGES = {
@@ -135,8 +156,115 @@ _PARAM_RANGES = {
     '/eos/param/frame_thrust_d': (0.0, 100.0),
     '/eos/param/frame_assembly': (-60.0, 60.0),
     '/eos/param/gobo_index_speed_1': (-100.0, 100.0),
-    '/eos/param/gobo_index_speed_2': (-100.0, 100.0),
+    '/eos/param/gobo_index\\speed_2': (-300.0, 300.0),
+    '/eos/param/gobo_select': (0.0, 10.0),
+    '/eos/param/gobo_select_2': (0.0, 10.0),
+    '/eos/param/animation_select': (0.0, 4.0),
+    '/eos/param/animation_index\\speed': (-300.0, 300.0),
+    '/eos/param/beam_fx_select': (0.0, 4.0),
+    '/eos/param/beam_fx_index\\speed': (0.0, 300.0),
+    '/eos/param/beam_fx_select_2': (0.0, 4.0),
+    '/eos/param/beam_fx_index\\speed_2': (-300.0, 300.0),
+    '/eos/param/beam_fx_wheel_mode': (0.0, 127.0),
+    '/eos/param/beam_fx_wheel_mode_2': (0.0, 127.0),
 }
+_LONG_PRESS_VALUE_OVERRIDES = {
+    # topic -> (value_for_toggle_0, value_for_toggle_1)
+    '/eos/param/gobo_wheel_mode_2': (17.0, 54.0),
+}
+_PARAM_ENCODER_STATE_PREFIX = 'PARAM_ENCODER_'
+_DISCRETE_PARAM_PATHS = {
+    '/eos/param/gobo_select',
+    '/eos/param/gobo_select_2',
+    '/eos/param/animation_select',
+    '/eos/param/beam_fx_select',
+    '/eos/param/beam_fx_select_2',
+    '/eos/param/beam_fx_wheel_mode',
+    '/eos/param/beam_fx_wheel_mode_2',
+}
+_PATH_PRESET_CYCLES = {
+    '/eos/param/beam_fx_wheel_mode': [0.0, 1.0, 42.0, 127.0],
+}
+_PATH_COMPLEX_CYCLES = {
+    '/eos/param/beam_fx_select': [
+        ('/eos/param/beam_fx_select', 1.0),
+        ('/eos/param/beam_fx_select', 2.0),
+        ('/eos/param/beam_fx_wheel_mode', 42.0),
+        ('/eos/param/beam_fx_wheel_mode', 127.0),
+    ],
+}
+
+def _param_encoder_state_key(path: str) -> str:
+    clean = re.sub(r'[^a-z0-9]+', '_', path.lower())
+    return f"{_PARAM_ENCODER_STATE_PREFIX}{clean}"
+
+
+def _get_param_encoder_value(path: str) -> float:
+    key = _param_encoder_state_key(path)
+    try:
+        return float(STATE.fetch(key, 0.0))
+    except Exception:
+        return 0.0
+
+
+def _set_param_encoder_value(path: str, value: float):
+    key = _param_encoder_state_key(path)
+    try:
+        STATE.store(key, float(value))
+    except Exception:
+        pass
+
+
+def _apply_param_encoder_delta(path: str, delta: float):
+    if not path:
+        return
+    complex_cycle = _PATH_COMPLEX_CYCLES.get(path)
+    if complex_cycle:
+        steps = int(round(abs(delta)))
+        if steps <= 0:
+            steps = 1 if delta >= 0 else -1
+        direction = 1 if delta >= 0 else -1
+        state_key = f"COMPLEX_INDEX_{path.lower()}"
+        try:
+            idx = int(STATE.fetch(state_key, -1))
+        except Exception:
+            idx = -1
+        cycle_len = len(complex_cycle)
+        for _ in range(max(1, steps)):
+            idx = (idx + direction) % cycle_len
+        STATE.store(state_key, idx)
+        target_path, target_value = complex_cycle[idx]
+        _set_param_encoder_value(target_path, target_value)
+        payload = int(target_value) if abs(target_value - int(target_value)) < 1e-6 else float(target_value)
+        _send_osc(target_path, [payload])
+        return
+    presets = _PATH_PRESET_CYCLES.get(path)
+    if presets:
+        state_key = f"PRESET_INDEX_{path.lower()}"
+        idx = int(STATE.fetch(state_key, 0))
+        if delta > 0:
+            idx = (idx + 1) % len(presets)
+        else:
+            idx = (idx - 1) % len(presets)
+        STATE.store(state_key, idx)
+        value = presets[idx]
+        _set_param_encoder_value(path, value)
+        _send_osc(path, [int(value)])
+        return
+    lo, hi = _PARAM_RANGES.get(path, (0.0, 1.0))
+    current = _get_param_encoder_value(path)
+    new_val = current + float(delta)
+    if new_val < lo:
+        new_val = lo
+    elif new_val > hi:
+        new_val = hi
+    if path in _DISCRETE_PARAM_PATHS:
+        new_val = round(new_val)
+    _set_param_encoder_value(path, new_val)
+    payload = float(new_val)
+    if path in _DISCRETE_PARAM_PATHS:
+        payload = int(round(new_val))
+    _send_osc(path, [payload])
 
 
 def _submenu_state_key(menu_idx: int) -> str:
@@ -308,7 +436,10 @@ def _set_active(idx:int):
     STATE.store('ACTIVE_MENU', idx)
     if idx in _SUBMENU_CONFIG:
         # Reset submenu to index 0 (first submenu)
-        _set_submenu_index(idx, 0)
+        default_idx = 0
+        if idx == 0 and len(_SUBMENU_CONFIG[idx]) > 1:
+            default_idx = 1
+        _set_submenu_index(idx, default_idx)
     try:
         print('[menu active] menu_' + str(idx))
     except Exception:
@@ -353,17 +484,18 @@ def _lookup(menu_idx:int, topic:str):
     """Look up normalized topic (no leading slash) in menu_X/map_osc.
 
     Returns:
-        tuple: (path_out, scale, path_out_long)
+        tuple: (path_out, scale, path_out_long, press_mode)
     """
     T = op(f"/project1/layers/menus/menu_{int(menu_idx)}/map_osc")
     if not T:
-        return None, 1.0, None
+        return None, 1.0, None, 'optimistic'
     cols = { T[0,c].val.strip().lower(): c for c in range(T.numCols) }
     ci_topic = cols.get('topic'); ci_path = cols.get('path_out')
     ci_scale = cols.get('scale'); ci_en   = cols.get('enabled')
     ci_path_long = cols.get('path_out_long')
+    ci_press_mode = cols.get('press_mode')
     if ci_topic is None:
-        return None, 1.0, None
+        return None, 1.0, None, 'optimistic'
     t = (topic or '').lstrip('/')
     tracker = _submenu_tracker(menu_idx)
     for r in range(1, T.numRows):
@@ -381,8 +513,9 @@ def _lookup(menu_idx:int, topic:str):
             path  = T[r,ci_path].val if (ci_path is not None and T[r,ci_path]) else ''
             scale = float(T[r,ci_scale].val) if (ci_scale is not None and T[r,ci_scale] and T[r,ci_scale].val) else 1.0
             path_long = T[r,ci_path_long].val.strip() if (ci_path_long is not None and T[r,ci_path_long]) else ''
-            return path, scale, (path_long if path_long else None)
-    return None, 1.0, None
+            press_mode = T[r,ci_press_mode].val.strip() if (ci_press_mode is not None and T[r,ci_press_mode]) else 'optimistic'
+            return path, scale, (path_long if path_long else None), press_mode
+    return None, 1.0, None, 'optimistic'
 
 def _topic_color(menu_idx:int, topic:str):
     T = op(f"/project1/layers/menus/menu_{int(menu_idx)}/map_osc")
@@ -546,52 +679,108 @@ def _send_osc(addr, payload):
 
 def handle_event(topic, value):
     _ensure_active()
+
+    # Check for scheduled long press actions first
+    FILT = op('/project1/layers/menus/event_filters')
+    filt_mod = FILT.module if FILT else None
+    check_func = getattr(filt_mod, 'check_scheduled_buttons', None) if filt_mod else None
+
+    if callable(check_func):
+        scheduled_actions = check_func()
+        act = _get_active()
+        for btn_topic, action_type, payload in scheduled_actions:
+            # Execute scheduled long press
+            path, scale, path_long, press_mode = _lookup(act, btn_topic)
+            if path_long:
+                try:
+                    print(f"[scheduled long press] {btn_topic} -> {path_long} = {payload}")
+                except Exception:
+                    pass
+                _handle_long_press_action(path_long, payload)
+
     # Topic normalisieren: '/enc/1' -> 'enc/1'
     t_raw = str(topic or '')
     t = t_raw.lstrip('/')
 
-    # 1) Menue-Tasten (exklusiv) sowie sonstige Buttons
+    # 1) ALL Buttons - unified handler through button_press filter
     if t.startswith('btn/'):
         try:
             idx = int(t.split('/')[-1])
         except (ValueError, IndexError, AttributeError):
             idx = None
-        analog_value = None
-        if idx is not None:
-            try:
-                analog_value = float(value)
-            except (ValueError, TypeError):
-                analog_value = 0.0
+
+        # Get button_press filter
+        btn_func = getattr(filt_mod, 'button_press', None) if filt_mod else None
+
+        # Menu Buttons (1-5): Special handling with long press support
         if idx and 1 <= idx <= 5:
-            pressed = analog_value >= 0.5
-            previous = _get_active()
-            if pressed:
-                if previous != idx:
-                    _set_active(idx)
-                    apply_menu_leds(idx)
-                else:
-                    if idx in _SUBMENU_CONFIG:
-                        _advance_submenu(idx)
-                        apply_menu_leds(idx)
-                    else:
-                        _set_active(0)
-                        apply_menu_leds(0)
-            action_spec = _menu_button_action(idx)
-            if action_spec is not None:
-                _send_path_spec(action_spec, [analog_value])
+            # Get press_mode from lookup (use current menu for action path)
+            act = _get_active()
+            _, _, _, press_mode = _lookup(act if act else 0, t)
+
+            if callable(btn_func):
+                result = btn_func(t, value, press_mode)
+                if result:
+                    action_type, payload = result
+                    if action_type == 'press':
+                        # Short press: Menu switching logic
+                        previous = _get_active()
+                        if previous != idx:
+                            _set_active(idx)
+                            apply_menu_leds(idx)
+                        else:
+                            if idx in _SUBMENU_CONFIG:
+                                _advance_submenu(idx)
+                                apply_menu_leds(idx)
+                            else:
+                                _set_active(0)
+                                apply_menu_leds(0)
+                        # Execute menu button action
+                        action_spec = _menu_button_action(idx)
+                        if action_spec is not None:
+                            _send_path_spec(action_spec, [float(payload)])
+                    elif action_type == 'long_press':
+                        # Long press: Only execute action, no menu switch
+                        action_spec = _menu_button_action(idx)
+                        if action_spec is not None:
+                            _send_path_spec(action_spec, [float(payload)])
             return True
 
+        # Menu 0 Sub Buttons (11-15): Submenu selection with long press support
         act_btn = _get_active()
         if act_btn == 0 and idx in _MENU0_SUB_BUTTONS:
-            pressed = analog_value >= 0.5 if analog_value is not None else False
-            if pressed:
-                _set_submenu_index(0, _MENU0_SUB_BUTTONS[idx])
-                apply_menu_leds(0)
-            analog_out = analog_value if analog_value is not None else 0.0
-            path, scale, path_long = _lookup(0, t)
-            if path:
-                _send_path_spec(path, [analog_out])
+            path, scale, path_long, press_mode = _lookup(0, t)
+
+            if callable(btn_func):
+                result = btn_func(t, value, press_mode)
+                if result:
+                    action_type, payload = result
+                    if action_type == 'press':
+                        # Short press: Submenu switch + action
+                        current_sub = _get_submenu_index(0)
+                        target_sub = _MENU0_SUB_BUTTONS[idx]
+                        toggle_off = (int(current_sub) == int(target_sub))
+                        if toggle_off:
+                            _set_submenu_index(0, 0)
+                        else:
+                            _set_submenu_index(0, target_sub)
+                        apply_menu_leds(0)
+                        if path and not toggle_off:
+                            path_clean = path.strip()
+                            try:
+                                payload_val = float(payload) * scale
+                            except Exception:
+                                payload_val = float(scale)
+                            if path_clean.lower().count('/home'):
+                                payload_val = 1.0
+                            _send_path_spec(path, [payload_val])
+                    elif action_type == 'long_press':
+                        # Long press: Long action only
+                        if path_long:
+                            _handle_long_press_action(path_long, payload)
             return True
+
+        # LED feedback for all other buttons
         if act_btn and DRV:
             color = _button_color(act_btn, t)
             if color:
@@ -600,7 +789,7 @@ def handle_event(topic, value):
                 except (ValueError, TypeError):
                     state = 'idle'
                 DRV.module.send_led(t, state, color, do_send=True)
-        # Button-Events ohne Menue-Wechsel laufen weiter zur OSC-Verarbeitung
+        # Other buttons fall through to standard OSC processing below
 
     act = _get_active()
     if act is None:
@@ -662,7 +851,7 @@ def handle_event(topic, value):
                 continue
 
             look = t + '/delta'     # 'enc/1/delta'
-            path, scale, path_long = _lookup(act, look)
+            path, scale, path_long, _ = _lookup(act, look)
             base_path = (path or '').strip() if path else ''
 
             # Special handling for gobo_select (discrete slot selection)
@@ -709,6 +898,12 @@ def handle_event(topic, value):
                 scale_val = 1.0
 
             payload_value = float(delta_int) * scale_val
+            if send_path and send_path.startswith('/eos/param/'):
+                stage_scale = _WHEEL_STAGE_SCALE.get(stage)
+                if stage_scale is not None:
+                    payload_value *= stage_scale
+                _apply_param_encoder_delta(send_path, payload_value)
+                continue
             if send_path and send_path.startswith('/eos/wheel/'):
                 stage_scale = _WHEEL_STAGE_SCALE.get(stage)
                 if stage_scale is not None:
@@ -724,8 +919,11 @@ def handle_event(topic, value):
                     _LEVEL_MODE_CACHE.pop(t, None)
                 _send_osc(send_path, [payload_value])
             else:
-                payload_out = int(round(payload_value)) if abs(payload_value - round(payload_value)) < 1e-6 else payload_value
-                _send_osc(send_path, [payload_out])
+                if send_path.startswith('/eos/param/'):
+                    _send_osc(send_path, [float(payload_value)])
+                else:
+                    payload_out = int(round(payload_value)) if abs(payload_value - round(payload_value)) < 1e-6 else payload_value
+                    _send_osc(send_path, [payload_out])
         return True
 
     # 3) Fader 14-bit geglättet ('fader/x')
@@ -737,7 +935,7 @@ def handle_event(topic, value):
         func = getattr(filt_mod, 'fader_smooth', None) if filt_mod else None
         y = func(t, value) if callable(func) else (float(value) if base_topic == t else None)
         if y is not None:
-            path, scale, path_long = _lookup(act, base_topic)
+            path, scale, path_long, _ = _lookup(act, base_topic)
             if path:
                 # Check if this is the video control path
                 if path.strip() == '/menu/video/normalized':
@@ -767,6 +965,8 @@ def handle_event(topic, value):
                             value_norm = 0.0
                         lo, hi = _PARAM_RANGES[path_clean]
                         payload = lo + (hi - lo) * value_norm
+                        if path_clean in _DISCRETE_PARAM_PATHS:
+                            payload = int(round(payload))
                         _send_osc(path_clean, [payload])
                         return True
                     # Apply quantization for OSC output
@@ -782,22 +982,19 @@ def handle_event(topic, value):
     # so we can intercept them and call video_control directly
 
     # 5) Standard: Lookup und raus
-    path, scale, path_long = _lookup(act, t)
+    path, scale, path_long, press_mode = _lookup(act, t)
 
     # Handle button long press (btn/, encPush/)
     if t.startswith(('btn/', 'encPush/')):
-        FILT = op('/project1/layers/menus/event_filters')
-        filt_mod = FILT.module if FILT else None
         btn_func = getattr(filt_mod, 'button_press', None) if filt_mod else None
 
         if callable(btn_func):
-            result = btn_func(t, value)
+            result = btn_func(t, value, press_mode)
             if result:
                 action_type, payload = result
                 if action_type == 'press':
                     # Short press - execute immediately (optimistic)
                     if path:
-                        # Check for video control commands
                         path_clean = path.strip()
                         if path_clean in ('/menu/video/play', '/menu/video/stop', '/menu/video/pause'):
                             try:
@@ -828,7 +1025,13 @@ def handle_event(topic, value):
                             except Exception as exc:
                                 print(f"[video control] Button command failed: {exc}")
                         else:
-                            _send_path_spec(path, [float(payload) * scale])
+                            try:
+                                payload_val = float(payload) * scale
+                            except Exception:
+                                payload_val = float(scale)
+                            if path_clean.lower().count('/home'):
+                                payload_val = 1.0
+                            _send_path_spec(path, [payload_val])
                 elif action_type == 'long_press':
                     # Long press - execute long action with toggle
                     if path_long:
@@ -836,7 +1039,7 @@ def handle_event(topic, value):
                             print(f"[long press] {t} -> {path_long} = {payload}")
                         except Exception:
                             pass
-                        _send_path_spec(path_long, [float(payload)])
+                        _handle_long_press_action(path_long, payload)
             return True
 
     # Non-button events (fader, enc, etc.)

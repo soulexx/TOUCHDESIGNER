@@ -1,15 +1,15 @@
-topic	device	midi_channel	control_id	path_out	scale	enabled	led_color	path_out_long
+topic	device	midi_channel	control_id	path_out	scale	enabled	led_color	path_out_long	press_mode
 __menu_color__					1	grey
-btn/11	midicraft	1	21	/menu/0/sub/0	1	1	white
+btn/11	midicraft	1	21	/menu/0/sub/0	1	1	white	/eos/key/macro && /eos/key/1 && /eos/key/4 && /eos/key/0 && /eos/key/6 && /eos/key/enter	timer
 btn/12	midicraft	1	22	/menu/0/sub/1	1	1	white
 btn/13	midicraft	1	23	/menu/0/sub/2	1	1	white
-btn/14	midicraft	1	24	/menu/0/sub/3	1	1	white
-btn/15	midicraft	1	25	/menu/0/sub/4	1	1	white
+btn/14	midicraft	1	24	/eos/key/last	1	1	white
+btn/15	midicraft	1	25	/eos/key/group && /eos/key/last && /eos/key/enter	1	1	white
 btn/21	midicraft	1	26			1	1	white
 btn/22	midicraft	1	27			1	1	white
 btn/23	midicraft	1	28			1	1	white
-btn/24	midicraft	1	29			1	1	white
-btn/25	midicraft	1	30			1	1	white
+btn/24	midicraft	1	29	/eos/key/next		1	1	white
+btn/25	midicraft	1	30	/eos/key/group && /eos/key/next && /eos/key/enter		1	1	white
 __submenu__ 0.1
 enc/1/delta	midicraft	1	6	/eos/wheel/level	1	1	white
 enc/2/delta	midicraft	1	7	/eos/wheel/fine/tilt	1	1	white
@@ -28,20 +28,20 @@ fader/4	midicraft	1	19	/eos/param/zoom	1	1	white
 fader/5	midicraft	1	20	/eos/param/edge	1	1	white
 __submenu__ 0.2
 enc/1/delta	midicraft	1	6	/eos/param/gobo_select	1	1	white
-enc/2/delta	midicraft	1	7	/eos/wheel/gobo_index_speed_2	1	1	white
-enc/3/delta	midicraft	1	8	/menu/0/2/enc3	1	1	white
-enc/4/delta	midicraft	1	9	/menu/0/2/enc4	1	1	white
-enc/5/delta	midicraft	1	10	/menu/0/2/enc5	1	1	white
+enc/2/delta	midicraft	1	7	/eos/param/gobo_index\speed_2	1	1	white
+enc/3/delta	midicraft	1	8	/eos/param/animation_select	1	1	white
+enc/4/delta	midicraft	1	9	/eos/param/beam_fx_select	1	1	white
+enc/5/delta	midicraft	1	10	/eos/param/beam_fx_select_2	1	1	white
 encPush/1	midicraft	1	1	/eos/param/gobo_select/home	1	1	white
-encPush/2	midicraft	1	2	/eos/param/gobo_index_speed_2/home	1	1	white	/eos/param/gobo_index_speed_2/reset
-encPush/3	midicraft	1	3	/menu/0/2/encpush3	1	1	white
-encPush/4	midicraft	1	4	/menu/0/2/encpush4	1	1	white
-encPush/5	midicraft	1	5	/menu/0/2/encpush5	1	1	white
+encPush/2	midicraft	1	2	/eos/param/gobo_wheel_mode_2/home && /eos/param/gobo_index\speed_2/home && /eos/param/gobo_select_2/home	1	1	white	/eos/param/gobo_wheel_mode_2	timer
+encPush/3	midicraft	1	3	/eos/param/animation_index\speed/home	1	1	white
+encPush/4	midicraft	1	4	/eos/param/beam_fx_select/home && /eos/param/beam_fx_index\speed/home	1	1	white
+encPush/5	midicraft	1	5	/eos/param/beam_fx_select_2/home && /eos/param/beam_fx_index\speed_2/home	1	1	white	/eos/param/beam_fx_wheel_mode_2	timer
 fader/1	midicraft	1	16	/eos/param/gobo_select	1	1	white
 fader/2	midicraft	1	17	/eos/param/gobo_select_2	1	1	white
-fader/3	midicraft	1	18	/menu/0/2/fader3	1	1	white
-fader/4	midicraft	1	19	/menu/0/2/fader4	1	1	white
-fader/5	midicraft	1	20	/menu/0/2/fader5	1	1	white
+fader/3	midicraft	1	18	/eos/param/animation_index\speed	1	1	white
+fader/4	midicraft	1	19	/eos/param/beam_fx_index\speed	1	1	white
+fader/5	midicraft	1	20	/eos/param/beam_fx_index\speed_2	1	1	white
 __submenu__ 0.3
 enc/1/delta	midicraft	1	6	/eos/wheel/frame_angle_a	1	1	white
 enc/2/delta	midicraft	1	7	/eos/wheel/frame_angle_b	1	1	white
@@ -51,6 +51,7 @@ encPush/1	midicraft	1	1	/eos/param/frame_angle_a/home && /eos/param/frame_thrust
 encPush/2	midicraft	1	2	/eos/param/frame_angle_b/home && /eos/param/frame_thrust_b/home	1	1	white
 encPush/3	midicraft	1	3	/eos/param/frame_angle_c/home && /eos/param/frame_thrust_c/home	1	1	white
 encPush/4	midicraft	1	4	/eos/param/frame_angle_d/home && /eos/param/frame_thrust_d/home	1	1	white
+encPush/5	midicraft	1	5	/eos/param/frame_assembly/home	1	1	white
 fader/1	midicraft	1	16	/eos/param/frame_thrust_a	1	1	white
 fader/2	midicraft	1	17	/eos/param/frame_thrust_b	1	1	white
 fader/3	midicraft	1	18	/eos/param/frame_thrust_c	1	1	white
