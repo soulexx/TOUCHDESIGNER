@@ -3,13 +3,13 @@ __menu_color__					1	grey
 btn/11	midicraft	1	21	/menu/0/sub/0	1	1	white	/eos/key/macro && /eos/key/1 && /eos/key/4 && /eos/key/0 && /eos/key/6 && /eos/key/enter	timer
 btn/12	midicraft	1	22	/menu/0/sub/1	1	1	white
 btn/13	midicraft	1	23	/menu/0/sub/2	1	1	white
-btn/14	midicraft	1	24	/eos/key/last	1	1	white
-btn/15	midicraft	1	25	/eos/key/group && /eos/key/last && /eos/key/enter	1	1	white
-btn/21	midicraft	1	26			1	1	white
-btn/22	midicraft	1	27			1	1	white
-btn/23	midicraft	1	28			1	1	white
-btn/24	midicraft	1	29	/eos/key/next		1	1	white
-btn/25	midicraft	1	30	/eos/key/group && /eos/key/next && /eos/key/enter		1	1	white
+btn/14	midicraft	1	24	/eos/key/last	1	1	magenta
+btn/15	midicraft	1	25	/eos/key/group && /eos/key/last && /eos/key/enter	1	1	magenta
+btn/21	midicraft	1	26	/eos/key/macro && /eos/key/1 && /eos/key/3 && /eos/key/0 && /eos/key/1 && /eos/key/enter	1	1	magenta	/eos/key/macro && /eos/key/1 && /eos/key/3 && /eos/key/0 && /eos/key/6 && /eos/key/enter	timer
+btn/22	midicraft	1	27	/eos/key/macro && /eos/key/1 && /eos/key/3 && /eos/key/0 && /eos/key/2 && /eos/key/enter	1	1	magenta	/eos/key/macro && /eos/key/1 && /eos/key/3 && /eos/key/0 && /eos/key/7 && /eos/key/enter	timer
+btn/23	midicraft	1	28	/eos/key/macro && /eos/key/1 && /eos/key/3 && /eos/key/0 && /eos/key/3 && /eos/key/enter	1	1	magenta	/eos/key/macro && /eos/key/1 && /eos/key/3 && /eos/key/0 && /eos/key/8 && /eos/key/enter	timer
+btn/24	midicraft	1	29	/eos/key/next	1	1	magenta
+btn/25	midicraft	1	30	/eos/key/group && /eos/key/next && /eos/key/enter	1	1	magenta
 __submenu__ 0.1
 enc/1/delta	midicraft	1	6	/eos/wheel/level	1	1	white
 enc/2/delta	midicraft	1	7	/eos/wheel/fine/tilt	1	1	white

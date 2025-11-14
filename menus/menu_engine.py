@@ -542,7 +542,18 @@ def _topic_color(menu_idx:int, topic:str):
 
 def _button_color(menu_idx:int, topic:str):
     color = _topic_color(menu_idx, topic)
-    return color if color else _menu_color(menu_idx)
+    if not color and int(menu_idx) != 0:
+        color = _topic_color(0, topic)
+    if not color:
+        try:
+            base = topic.split('/', 1)[0]
+        except Exception:
+            base = ''
+        if base == 'btn':
+            color = 'white'
+        else:
+            color = _menu_color(menu_idx)
+    return color
 
 def _all_menu_button_topics():
     topics = set()
@@ -677,26 +688,68 @@ def _send_osc(addr, payload):
     except Exception as e:
         print("[osc ERR]", addr, payload, e)
 
-def handle_event(topic, value):
-    _ensure_active()
-
-    # Check for scheduled long press actions first
+def _execute_scheduled_long_press():
+    """Execute any pending scheduled long press actions. Called continuously."""
     FILT = op('/project1/layers/menus/event_filters')
     filt_mod = FILT.module if FILT else None
     check_func = getattr(filt_mod, 'check_scheduled_buttons', None) if filt_mod else None
 
     if callable(check_func):
         scheduled_actions = check_func()
-        act = _get_active()
-        for btn_topic, action_type, payload in scheduled_actions:
-            # Execute scheduled long press
-            path, scale, path_long, press_mode = _lookup(act, btn_topic)
-            if path_long:
+        if scheduled_actions:  # Only proceed if there are actions
+            act = _get_active()
+            for btn_topic, action_type, payload in scheduled_actions:
+                # Extract button index
+                t = btn_topic.lstrip('/')
                 try:
-                    print(f"[scheduled long press] {btn_topic} -> {path_long} = {payload}")
-                except Exception:
-                    pass
-                _handle_long_press_action(path_long, payload)
+                    idx = int(t.split('/')[-1])
+                except (ValueError, IndexError, AttributeError):
+                    idx = None
+
+                print(f"[DEBUG] Long press scheduled: topic={btn_topic}, act={act}, idx={idx}")
+
+                # Special handling for Menu 0 Sub Buttons (11-15)
+                if act == 0 and idx in _MENU0_SUB_BUTTONS:
+                    path, scale, path_long, press_mode = _lookup(0, t)
+                    print(f"[DEBUG] Menu0 Sub Button: path_long={path_long}")
+                    if path_long:
+                        try:
+                            print(f"[scheduled long press] {btn_topic} -> {path_long} = {payload}")
+                        except Exception:
+                            pass
+                        _handle_long_press_action(path_long, payload)
+                    else:
+                        print(f"[DEBUG] No path_long found for {btn_topic}")
+                    continue
+
+                # Standard long press handling for all other buttons
+                path, scale, path_long, press_mode = _lookup(act, btn_topic)
+                print(f"[DEBUG] Standard Button: path_long={path_long}")
+                if path_long:
+                    try:
+                        print(f"[scheduled long press] {btn_topic} -> {path_long} = {payload}")
+                    except Exception:
+                        pass
+                    _handle_long_press_action(path_long, payload)
+
+
+_RUN_COUNTER = 0
+
+def Run(frame, seconds, fraction, prevFrame):
+    """Called every frame - checks for pending long press actions."""
+    global _RUN_COUNTER
+    _RUN_COUNTER += 1
+    if _RUN_COUNTER % 300 == 0:  # Print every 5 seconds at 60fps
+        print(f"[DEBUG] Run() called, frame={frame}")
+    _execute_scheduled_long_press()
+
+
+def handle_event(topic, value):
+    _ensure_active()
+
+    # Get filter module for button_press function
+    FILT = op('/project1/layers/menus/event_filters')
+    filt_mod = FILT.module if FILT else None
 
     # Topic normalisieren: '/enc/1' -> 'enc/1'
     t_raw = str(topic or '')
@@ -781,7 +834,7 @@ def handle_event(topic, value):
             return True
 
         # LED feedback for all other buttons
-        if act_btn and DRV:
+        if act_btn is not None and DRV:
             color = _button_color(act_btn, t)
             if color:
                 try:

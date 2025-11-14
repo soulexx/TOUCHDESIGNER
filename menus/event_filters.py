@@ -23,7 +23,7 @@ FADER_ALPHA = 1.0
 FADER_EPS   = 0.0
 
 # Button Long Press
-BUTTON_LONG_PRESS_MS = 1000  # 1 second threshold
+BUTTON_LONG_PRESS_MS = 400   # 0.4 second threshold
 BUTTON_DEBUG         = True   # True -> Debug-Log for button events
 BUTTON_DEBOUNCE_MS   = 150   # Hardware bounce protection (MIDI controller issue)
 
@@ -170,8 +170,12 @@ def check_scheduled_buttons():
     now = time.monotonic()
     actions = []
 
+    if _btn_scheduled:
+        print(f"[DEBUG check_scheduled] Found {len(_btn_scheduled)} scheduled buttons")
+
     for topic, (start_time, press_value) in list(_btn_scheduled.items()):
         duration_ms = (now - start_time) * 1000.0
+        print(f"[DEBUG check_scheduled] {topic}: duration={duration_ms:.0f}ms, threshold={BUTTON_LONG_PRESS_MS}ms")
         if duration_ms >= BUTTON_LONG_PRESS_MS:
             # Time to execute long press
             current = _btn_toggle_state.get(topic, 0)
