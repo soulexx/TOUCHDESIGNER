@@ -1,4 +1,4 @@
-topic	device	midi_channel	control_id	path_out	scale	enabled	led_color
+topic	device	midi_channel	control_id	path_out	scale	enabled	led_color	path_out_long	press_mode
 __menu_color__						1	blue
 __submenu__ form					
 btn/11	midicraft	1	21	/eos/key/beam_palette && /eos/key/1 && /eos/key/0 && /eos/key/0 && /eos/key/1 && /eos/key/enter	1	1	blue
