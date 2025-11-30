@@ -167,6 +167,7 @@ _PARAM_RANGES = {
     '/eos/param/beam_fx_index\\speed_2': (-300.0, 300.0),
     '/eos/param/beam_fx_wheel_mode': (0.0, 127.0),
     '/eos/param/beam_fx_wheel_mode_2': (0.0, 127.0),
+    '/eos/fader/1/1/level': (0.0, 1.0),
 }
 _LONG_PRESS_VALUE_OVERRIDES = {
     # topic -> (value_for_toggle_0, value_for_toggle_1)
@@ -744,6 +745,62 @@ def Run(frame, seconds, fraction, prevFrame):
     _execute_scheduled_long_press()
 
 
+def _handle_vplayer_command(path, value):
+    """Video player event handler for /vplayer/* paths"""
+    vplayer = op('/project1/media/vplayer')
+    if not vplayer:
+        print(f"[vplayer] Component not found at /project1/media/vplayer")
+        return False
+
+    try:
+        state = vplayer.op('state')
+        if not state:
+            print(f"[vplayer] State CHOP not found")
+            return False
+
+        # Fader Events
+        if path == '/vplayer/scrub':
+            # Scrub position (0-1 normalized)
+            state['scrub_value'] = value
+            print(f"[vplayer] Scrub: {value:.3f}")
+            return True
+
+        elif path == '/vplayer/speed':
+            # Speed control (0.5-2.0)
+            state['speed'] = value
+            moviefile = vplayer.op('moviefilein1')
+            if moviefile:
+                moviefile.par.speed = value
+            print(f"[vplayer] Speed: {value:.2f}x")
+            return True
+
+        elif path == '/vplayer/volume':
+            # Volume control (0-1)
+            state['volume'] = value
+            audio_out = vplayer.op('audiodeviceout1')
+            if audio_out:
+                audio_out.par.volume = value
+            print(f"[vplayer] Volume: {value:.2f}")
+            return True
+
+        # Mode Toggle (GO long press)
+        elif path == '/vplayer/mode_toggle':
+            current_mode = state['mode'].eval()
+            new_mode = 1 - current_mode  # Toggle 0↔1
+            state['mode'] = new_mode
+            mode_name = 'RECORD' if new_mode == 1 else 'FOLLOW'
+            print(f"[vplayer] Mode: {mode_name}")
+            return True
+
+        return False
+
+    except Exception as exc:
+        print(f"[vplayer] Error handling {path}: {exc}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def handle_event(topic, value):
     _ensure_active()
 
@@ -754,6 +811,14 @@ def handle_event(topic, value):
     # Topic normalisieren: '/enc/1' -> 'enc/1'
     t_raw = str(topic or '')
     t = t_raw.lstrip('/')
+
+    # 0) Video Player Commands - intercept /vplayer/* paths early
+    # This must be before standard OSC processing to prevent conflicts
+    path_lookup = _lookup(_get_active() or 0, t)
+    path_out = path_lookup[0] if path_lookup else None
+    if path_out and path_out.strip().startswith('/vplayer/'):
+        if _handle_vplayer_command(path_out.strip(), value):
+            return True
 
     # 1) ALL Buttons - unified handler through button_press filter
     if t.startswith('btn/'):
