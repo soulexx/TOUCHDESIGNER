@@ -4,9 +4,11 @@ enc/2/delta	midicraft	1	7	/eos/wheel/pan	1	1
 enc/3/delta	midicraft	1	8	/eos/wheel/tilt	1	1
 enc/4/delta	midicraft	1	9	/eos/wheel/zoom	1	1
 enc/5/delta	midicraft	1	10	/eos/wheel/edge	1	1
-fader/1	midicraft	1	16	/eos/fader/1/1/level	1	1	yellow
-fader/2	midicraft	1	17	/vplayer/speed	0.5:2.0	1
-fader/3	midicraft	1	18	/vplayer/volume	0.0:1.0	1	
+fader/1	midicraft	1	16	/eos/sub/1	1	1	yellow
+fader/2	midicraft	1	17	/eos/sub/2	1	1	yellow
+fader/3	midicraft	1	18	/eos/sub/3	1	1	yellow
+fader/4	midicraft	1	19	/eos/sub/4	1	1	yellow
+fader/5	midicraft	1	20	/eos/sub/5	1	1	yellow	
 __menu_color__					1	yellow
 btn/11	midicraft	1	21	/eos/key/stop	1	1	red
 btn/12	midicraft	1	22	/menu/video/toggle	1	1	

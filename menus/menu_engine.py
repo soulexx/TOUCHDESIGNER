@@ -167,7 +167,6 @@ _PARAM_RANGES = {
     '/eos/param/beam_fx_index\\speed_2': (-300.0, 300.0),
     '/eos/param/beam_fx_wheel_mode': (0.0, 127.0),
     '/eos/param/beam_fx_wheel_mode_2': (0.0, 127.0),
-    '/eos/fader/1/1/level': (0.0, 1.0),
 }
 _LONG_PRESS_VALUE_OVERRIDES = {
     # topic -> (value_for_toggle_0, value_for_toggle_1)
