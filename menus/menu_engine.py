@@ -600,24 +600,39 @@ def _wheel_stage_path(base_path, stage):
     if not base_path.startswith('/eos/wheel/'):
         # Only wheel paths get stage variants.
         return base_path if stage == 'normal' else None
+
+    # Extrahiere Parameter-Name (z.B. 'pan', 'tilt', 'level')
+    # Unterstützt Pfade wie: /eos/wheel/pan, /eos/wheel/fine/pan, /eos/wheel/coarse/pan
     suffix = base_path[len('/eos/wheel/') :].strip('/')
     if not suffix:
         return base_path if stage == 'normal' else None
-    if suffix == 'level':
+
+    # Wenn suffix bereits 'fine/' oder 'coarse/' enthält, extrahiere den Parameter-Namen
+    if suffix.startswith('fine/'):
+        param = suffix[5:]  # 'fine/pan' -> 'pan'
+    elif suffix.startswith('coarse/'):
+        param = suffix[7:]  # 'coarse/pan' -> 'pan'
+    else:
+        param = suffix  # 'pan' -> 'pan'
+
+    if param == 'level':
         # Level wheel uses explicit mode commands, not fine/coarse suffixes.
-        return base_path
+        return '/eos/wheel/level'
+
     if stage == 'fine':
-        return f"/eos/wheel/fine/{suffix}"
+        return f"/eos/wheel/fine/{param}"
     if stage == 'coarse':
-        return f"/eos/wheel/coarse/{suffix}"
-    return base_path
+        return f"/eos/wheel/coarse/{param}"
+    # Normal stage: kein fine/coarse suffix
+    return f"/eos/wheel/{param}"
 
 _LEVEL_MODE_CACHE = {}  # topic -> last wheel mode (fine=1.0, coarse=0.0)
 
-# Stage-dependent encoder scaling for the EOS wheel. Fine gets extra precision,
-# coarse accelerates stronger. Tweak values as needed.
+# Stage-dependent encoder scaling for the EOS wheel.
+# Fine: 1.0 = normal speed (0.25 war zu langsam bei langsamen Drehungen)
+# Coarse: 2.0 = schneller bei schnellen Drehungen
 _WHEEL_STAGE_SCALE = {
-    'fine': 0.25,
+    'fine': 1.0,
     'coarse': 2.0,
 }
 
@@ -1026,14 +1041,15 @@ def handle_event(topic, value):
                 if stage_scale is not None:
                     payload_value *= stage_scale
             if send_path.startswith('/eos/wheel/'):
-                if send_path == '/eos/wheel/level':
-                    desired_mode = 1.0 if stage == 'fine' else 0.0
-                    last_mode = _LEVEL_MODE_CACHE.get(t)
-                    if last_mode is None or abs(last_mode - desired_mode) > 1e-6:
-                        _send_osc('/eos/wheel', [float(desired_mode)])
-                        _LEVEL_MODE_CACHE[t] = desired_mode
-                else:
-                    _LEVEL_MODE_CACHE.pop(t, None)
+                # EOS braucht Mode-Command nur für fine/coarse/level paths
+                # fine paths: mode 1.0, coarse/level paths: mode 0.0
+                if '/fine/' in send_path:
+                    _send_osc('/eos/wheel', [1.0])
+                elif '/coarse/' in send_path:
+                    _send_osc('/eos/wheel', [0.0])
+                elif send_path == '/eos/wheel/level':
+                    _send_osc('/eos/wheel', [0.0])
+                # Normal paths wie /eos/wheel/tilt brauchen kein mode command
                 _send_osc(send_path, [payload_value])
             else:
                 if send_path.startswith('/eos/param/'):

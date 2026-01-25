@@ -11,7 +11,9 @@
       "Bash(npx @bottobot/td-mcp --version)",
       "Bash(npx -y touchdesigner-mcp-server@latest --help)",
       "Bash(npm view:*)",
-      "Bash(npx @bottobot/td-mcp)"
+      "Bash(npx @bottobot/td-mcp)",
+      "Bash(find:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
